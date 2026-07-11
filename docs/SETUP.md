@@ -1,19 +1,77 @@
 # Setup
 
-## Docker (recommended)
+## One command, any OS (recommended)
 
-Requires [Docker](https://docs.docker.com/engine/install/) with the Compose
-plugin.
+Requires [Docker](https://docs.docker.com/get-docker/) — Linux, macOS, and
+Windows (via Docker Desktop) all work identically since this is a plain
+Python script, not a shell script:
 
 ```
-./deploy/install.sh
+python install.py
 ```
 
 This brings up an `ollama` container plus the KafKaf `backend` container
 (see `deploy/docker-compose.yml`), waits for Ollama to be ready, and pulls
-the default model (`qwen2.5:3b` — override with `KAFKAF_OLLAMA_MODEL`).
+the default model (`qwen2.5:3b` — override by editing `DEFAULT_MODEL` in
+`install.py` or setting `KAFKAF_OLLAMA_MODEL` before starting Ollama
+manually). The backend — which also serves the web GUI — is then reachable
+at `http://localhost:8420`.
 
-Backend is then reachable at `http://localhost:8420`.
+Linux/macOS users who prefer a shell script can use `./deploy/install.sh`
+instead; it does the same thing.
+
+### Keeping a VPS deployment updated from the repo
+
+```
+./deploy/update.sh
+```
+
+Pulls the latest commit and rebuilds/restarts the Docker stack in place.
+
+## Web GUI
+
+Nothing to install — once the backend is running (Docker or
+`kafkaf-server`), open `http://localhost:8420` in any browser. It's a
+single static page (`kafkaf/clients/web/static/`) served directly by the
+backend, mobile-first, no build step or Node toolchain.
+
+## CLI / terminal
+
+```
+pip install -e .
+kafkaf chat "hello"     # one-shot message
+kafkaf repl              # interactive terminal session (type 'exit' to leave)
+```
+
+## Desktop app
+
+A native window wrapping the same web GUI, built on
+[pywebview](https://pywebview.flowrl.com/) (pure Python — no Electron/Node,
+no Tauri/Rust toolchain), so it stays a single small dependency:
+
+```
+pip install -e ".[desktop]"
+kafkaf-desktop
+```
+
+Pre-built single-file executables for Windows/macOS/Linux are produced by
+`.github/workflows/build-desktop.yml` on every `v*` tag (or manually via
+"Run workflow" in the Actions tab) — download them from that workflow
+run's Artifacts. To build one yourself:
+
+```
+pip install -e ".[desktop]" pyinstaller
+python scripts/build_desktop.py
+```
+
+The result is `dist/kafkaf-desktop` (`.exe` on Windows). **Linux note:**
+pywebview's GTK backend needs system GObject-introspection bindings that
+pip alone can't install — if `kafkaf-desktop` fails with "You must have
+either QT or GTK", install them first: `sudo apt install python3-gi
+python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1` (Debian/Ubuntu; see the
+CI workflow for the exact package list). Windows (WebView2) and macOS
+(WebKit) don't need any extra system packages — the OS provides the
+webview engine.
 
 ## Manual / local development
 

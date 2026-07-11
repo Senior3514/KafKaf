@@ -14,11 +14,13 @@ kafkaf/
     memory/       # persistent per-session conversation history (SQLite)
     enrichment/   # the training corpus + teach/distill/train orchestration
     db.py         # shared sqlite connection helper (memory + enrichment)
-    api.py        # FastAPI app: /health, /chat
+    api.py        # FastAPI app: /health, /chat, / (web GUI), /static
     server.py     # uvicorn entrypoint (`kafkaf-server`)
   clients/
     cli/          # thin CLI (typer) — talks to core/api.py over HTTP
-    # tui/, desktop/, web/ — planned, see ROADMAP.md
+    web/static/   # the web GUI itself (plain HTML/CSS/JS, served by core/api.py)
+    desktop/      # pywebview wrapper around the web GUI -> packaged exe
+    # tui/ — planned, see ROADMAP.md (kafkaf repl already covers "terminal" today)
   model/          # our own from-scratch-trained model (nanoGPT-style GPT,
                    # byte-level tokenizer, training loop) — see ROADMAP.md
   mcp/
@@ -26,10 +28,39 @@ kafkaf/
 deploy/
   Dockerfile
   docker-compose.yml   # ollama + backend, for local/VPS use
-  install.sh            # one-shot setup script
+  install.sh            # one-shot setup script (shell twin of ../install.py)
+  update.sh              # git pull + rebuild/restart, for a running VPS
+install.py         # the one cross-platform install command (Linux/macOS/Windows)
+scripts/
+  build_desktop.py  # builds the desktop app into a single-file exe (PyInstaller)
+.github/workflows/
+  build-desktop.yml  # CI: builds Windows/macOS/Linux exe on every v* tag
 docs/
 tests/
 ```
+
+## Clients
+
+All four interfaces are thin layers over the same `core/api.py` — no
+orchestration logic is duplicated per client:
+
+- **Web GUI** (`kafkaf/clients/web/static/`): plain HTML/CSS/JS, no build
+  step, no Node toolchain. Served directly by the backend (`GET /` returns
+  `index.html`, `/static/*` serves the rest) so "start the backend" and
+  "have a web UI" are the same action — no separate frontend deploy.
+- **CLI/terminal** (`kafkaf/clients/cli/main.py`, typer): `kafkaf chat` for
+  one-shot messages, `kafkaf repl` for an interactive terminal session —
+  both just POST to `/chat`.
+- **Desktop app** (`kafkaf/clients/desktop/main.py`, pywebview): starts the
+  same FastAPI backend in a background thread bound to `127.0.0.1` (loopback
+  only), then opens a native OS window pointed at it. Packaged into a
+  single-file executable per OS by `scripts/build_desktop.py` (PyInstaller)
+  — see `.github/workflows/build-desktop.yml` and `docs/SETUP.md`. Chosen
+  over Electron/Tauri specifically because it's pure Python — no separate
+  Node or Rust toolchain needed to keep it buildable alongside the rest of
+  the stack.
+- **MCP server** — see its own section below; a different kind of client
+  (an in-process tool surface for Claude Desktop/Code, not an HTTP client).
 
 ## Local model runtime
 

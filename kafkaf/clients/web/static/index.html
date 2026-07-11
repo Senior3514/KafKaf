@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>KafKaf (כףכף)</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">כףכף <span class="brand-sub">KafKaf</span></div>
+  </header>
+
+  <main id="chat" class="chat" role="log" aria-live="polite"></main>
+
+  <form id="composer" class="composer">
+    <textarea
+      id="message"
+      class="message-input"
+      placeholder="כתבו הודעה..."
+      rows="1"
+      autofocus
+    ></textarea>
+    <button type="submit" class="send-btn" aria-label="שליחה">➤</button>
+  </form>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

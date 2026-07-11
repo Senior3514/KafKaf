@@ -1,10 +1,15 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from kafkaf.core import council
 from kafkaf.core.memory import store
+
+WEB_DIR = Path(__file__).resolve().parent.parent / "clients" / "web" / "static"
 
 
 @asynccontextmanager
@@ -38,3 +43,13 @@ async def chat(request: ChatRequest) -> ChatResponse:
         request.session_id, request.message, request.persona
     )
     return ChatResponse(reply=reply, session_id=request.session_id)
+
+
+@app.get("/", include_in_schema=False)
+async def web_index() -> FileResponse:
+    """The mobile-first web GUI, served directly by the backend — no separate
+    build step or Node toolchain required."""
+    return FileResponse(WEB_DIR / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")

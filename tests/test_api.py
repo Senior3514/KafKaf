@@ -45,3 +45,18 @@ def test_chat_remembers_history():
 
     history = council.store.get_history("s1")
     assert [m["content"] for m in history] == ["first", "pong", "second", "pong"]
+
+
+def test_web_gui_served_at_root():
+    with TestClient(app) as client:
+        response = client.get("/")
+    assert response.status_code == 200
+    assert "KafKaf" in response.text
+
+
+def test_web_gui_static_assets():
+    with TestClient(app) as client:
+        js = client.get("/static/app.js")
+        css = client.get("/static/style.css")
+    assert js.status_code == 200
+    assert css.status_code == 200

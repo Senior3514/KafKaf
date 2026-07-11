@@ -5,37 +5,60 @@ Your own AI team — private, local, free, and always learning.
 KafKaf is a free, open-source, self-hosted AI agent platform. It runs local
 open-source language models by default (nothing leaves your machine), can
 fan a query out across several models in parallel ("council of brains"),
-and ships with personas, skills, and persistent memory. Every interface —
-CLI, terminal UI, desktop app, and a mobile-first web app — is a thin client
-over the same core API.
+and ships with personas, skills, and persistent memory — plus its own
+from-scratch-trained model that keeps growing as you teach it (see
+`docs/ROADMAP.md`). Every interface — web GUI, desktop app, CLI/terminal —
+is a thin client over the same core API.
 
 This is not a claim of AGI/ASI — no one has built that. It's a practical,
-honest platform for running your own AI, on your own hardware, for free,
-and growing it over time (including a from-scratch-trained small model —
-see `docs/ROADMAP.md`).
+honest platform for running your own AI, on your own hardware, for free.
 
-## Quick start
+## Quick start — one command, every OS
 
-Requires [Docker](https://docs.docker.com/engine/install/).
-
-```
-./deploy/install.sh
-```
-
-This starts a local Ollama instance plus the KafKaf backend, and pulls the
-default model. Then talk to it:
+Requires [Docker](https://docs.docker.com/get-docker/) (Linux, macOS, and
+Windows via Docker Desktop all work identically):
 
 ```
-pip install -e .
-kafkaf chat "Hey KafKaf, who are you?"
+python install.py
 ```
 
-Or hit the API directly:
+This brings up Ollama + the KafKaf backend and pulls the default local
+model. Then open **http://localhost:8420** in a browser for the web GUI —
+that's it, no separate frontend build step.
+
+## Every interface
+
+- **Web GUI** — `http://localhost:8420` once the backend is running (see
+  above). Mobile-first, works in any browser.
+- **CLI / terminal**:
+  ```
+  pip install -e .
+  kafkaf chat "Hey KafKaf, who are you?"   # one-shot
+  kafkaf repl                               # interactive terminal session
+  ```
+- **Desktop app** (native window, same GUI, packaged into a single exe per
+  OS via CI — see `.github/workflows/build-desktop.yml` and
+  `docs/SETUP.md`):
+  ```
+  pip install -e ".[desktop]"
+  kafkaf-desktop
+  ```
+- **API directly**:
+  ```
+  curl -X POST http://localhost:8420/chat \
+    -H 'Content-Type: application/json' \
+    -d '{"message": "hello"}'
+  ```
+- **MCP server** (teach/train KafKaf's own model from Claude Desktop/Code)
+  — see `docs/SETUP.md`.
+
+## Running on a VPS, and keeping it updated
+
+`python install.py` (or `deploy/install.sh`) works the same on a VPS as
+locally. To pull the latest code from the repo and rebuild/restart:
 
 ```
-curl -X POST http://localhost:8420/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"message": "hello"}'
+./deploy/update.sh
 ```
 
 ## Development
@@ -57,10 +80,12 @@ kafkaf-server
 See `docs/ARCHITECTURE.md` for the full picture. In short:
 
 - `kafkaf/core` — the orchestrator: brains (model adapters), personas,
-  memory, the API.
-- `kafkaf/clients` — CLI, and (coming soon) terminal UI, desktop, and web
-  clients — all thin, all over the core API.
-- `deploy` — Docker Compose stack and VPS install script.
+  memory, enrichment, the API (which also serves the web GUI).
+- `kafkaf/model` — our own from-scratch-trained model.
+- `kafkaf/clients` — CLI, desktop, and web clients — all thin, all over the
+  core API.
+- `kafkaf/mcp` — the local MCP server for teaching/training the own model.
+- `deploy` — Docker Compose stack, VPS install/update scripts.
 
 ## Roadmap
 

@@ -10,11 +10,25 @@ depends on a big-bang release — "grow it over time."
 - [ ] **Phase 3 — Council + skills**: parallel multi-brain routing and
       synthesis, tool-use skills plugin system, multiple personas, optional
       API-model brains.
-- [ ] **Phase 4 — Web (mobile-first) + terminal UI**: both consume the same
-      core API; web is a responsive installable PWA, the TUI is a
-      terminal-native alternative to the CLI for interactive sessions.
-- [ ] **Phase 5 — Desktop packaging**: Tauri wrapper around the web client,
-      producing installable Windows/macOS/Linux binaries.
+- [x] **Phase 4 — Web (mobile-first) + terminal**: a mobile-first web GUI
+      (`kafkaf/clients/web/static/`) served directly by the backend — no
+      build step, no separate deploy. `kafkaf repl` gives the CLI an
+      interactive terminal session. Not yet done: a richer `textual`-based
+      TUI (today's `repl` is a plain readline-style loop, which covers the
+      "terminal" need but isn't a full TUI); a PWA manifest for
+      installable/offline web use.
+- [x] **Phase 5 — Desktop packaging**: `kafkaf/clients/desktop/` wraps the
+      web GUI in a native window via `pywebview` (pure Python — chosen over
+      Tauri specifically to avoid adding a Rust toolchain to the build).
+      `.github/workflows/build-desktop.yml` builds single-file executables
+      for Windows/macOS/Linux on every `v*` tag. Verified locally: the
+      Linux build produces a working binary whose bundled backend + web GUI
+      actually start and serve; the actual window can't be opened in a
+      headless sandbox (no display), so real window-open behavior is only
+      confirmed on real desktop OSes. Linux specifically needs system GTK
+      bindings pywebview can't bundle standalone — see the caveat in
+      `docs/SETUP.md`; Windows (WebView2) and macOS (WebKit) don't have
+      this issue since the OS provides the engine.
 - [x] **Phase 6 — Own-model training track (initial slice)**: a small
       transformer we design and pretrain ourselves (`kafkaf/model/` —
       byte-level nanoGPT-style GPT, no downloaded checkpoint), a corpus +
@@ -26,9 +40,14 @@ depends on a big-bang release — "grow it over time."
       done: wiring `OwnModelBrain` into the council's default routing
       (deliberately deferred until quality warrants it), scheduled/unattended
       training runs, and a subword tokenizer upgrade.
-- [ ] **Phase 7 — Deployment automation**: polish `deploy/install.sh` and
-      `docker-compose.yml` into a true one-command VPS setup; finish
-      setup/contribution docs for the public release.
+- [x] **Phase 7 — Deployment automation (initial slice)**: `install.py` at
+      the repo root is the one cross-platform install command (Linux/macOS/
+      Windows, since it's Python rather than a shell script); `deploy/
+      update.sh` pulls the latest commit and rebuilds/restarts a running VPS
+      deployment. Not yet done: contribution docs for the public release,
+      and the docker-compose named-volume → bind-mount fix noted in the
+      phase 6 MCP section (only needed if the dockerized backend and a
+      host-run MCP server must share one sqlite file).
 
 ## Notes on scope
 
