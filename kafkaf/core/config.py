@@ -10,5 +10,17 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8420
 
+    # Our own from-scratch-trained model (see kafkaf/model/ and docs/ROADMAP.md phase 6).
+    own_model_checkpoint_path: str = "kafkaf-own-model.pt"
+    own_model_preset: str = "tiny"
+
+    # Optional API-model "teachers" for enrichment. Never hardcode these — env vars only.
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-3-5-haiku-latest"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-1.5-flash"
+
 
 settings = Settings()

@@ -1,7 +1,6 @@
-import sqlite3
-from contextlib import contextmanager
-
 from kafkaf.core.config import settings
+from kafkaf.core.db import connect as _connect_db
+from contextlib import contextmanager
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS messages (
@@ -16,12 +15,8 @@ CREATE TABLE IF NOT EXISTS messages (
 
 @contextmanager
 def _connect():
-    conn = sqlite3.connect(settings.db_path)
-    try:
+    with _connect_db(settings.db_path) as conn:
         yield conn
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def init_db() -> None:
