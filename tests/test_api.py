@@ -143,6 +143,43 @@ def test_audit_endpoint_filters_by_event_type():
     assert response.json() == []
 
 
+def test_autonomy_endpoint_returns_current_level():
+    with TestClient(app) as client:
+        response = client.get("/autonomy")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["level"] == "autonomous"
+    assert body["skills_allowed"] is True
+
+
+def test_chat_skills_rejected_at_observe_level(monkeypatch):
+    monkeypatch.setattr("kafkaf.core.config.settings.autonomy_level", "observe")
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-observe", "skills": True}
+        )
+    assert response.status_code == 400
+    assert "autonomy level" in response.json()["detail"]
+
+
+def test_chat_skills_allowed_at_assisted_level(monkeypatch):
+    monkeypatch.setattr("kafkaf.core.config.settings.autonomy_level", "assisted")
+
+    class ScriptedBrain(Brain):
+        name = "scripted-assisted"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "FINAL ANSWER: ok"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-assisted", "skills": True}
+        )
+    assert response.status_code == 200
+
+
 def test_chat_skills_mode_executes_tools(monkeypatch):
     class ScriptedBrain(Brain):
         name = "scripted"

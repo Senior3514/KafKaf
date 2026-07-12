@@ -35,6 +35,40 @@ Pulls the latest commit and rebuilds/restarts the Docker stack, using
 whichever mode (`local`/`tailscale`) it was installed with (`install.py`
 records this in `deploy/.compose-mode`).
 
+## Autonomy levels
+
+One legible dial (`--autonomy` at install time, or `KAFKAF_AUTONOMY_LEVEL`)
+instead of remembering which combination of flags adds up to how much
+KafKaf can do on its own. Percentages are an approximate framing, not a
+literal slider — named tiers are harder to misconfigure than a raw number:
+
+| Level | ~% | What it unlocks |
+|---|---|---|
+| `observe` | ~0% | Chat only. No tool use (skills mode is rejected at the API), no unattended growth loop. |
+| `assisted` | ~50% | Skills (tools) available per chat turn. Autopilot does not start — a human still initiates any tool use or training. |
+| **`autonomous`** (default) | ~100% | Skills available, **and** autopilot runs unattended by default. Everything currently shippable, with the real emergency stop (`kafkaf-autopilot-ctl stop`) as the safety valve that makes this default responsible. |
+
+Set it at install time:
+```
+python install.py --autonomy assisted
+```
+Check what's active anytime: `kafkaf autonomy` or `GET /autonomy`. A
+narrower override also exists — `--no-autopilot` keeps `autonomous`'s
+skills enabled but skips just the autopilot container, if you want tools
+without the unattended loop specifically.
+
+**Why a dial, not just more flags:** every capability KafKaf gains that a
+human doesn't review turn-by-turn (autopilot's unattended cycles, in
+particular) is a materially different kind of risk than one a human
+explicitly triggers per chat. `observe`/`assisted`/`autonomous` makes that
+distinction a single, visible setting instead of something you have to
+reconstruct from several independent flags. There isn't a "beyond
+autonomous" tier yet — the next one unlocks only once a capability with
+that same "safe for a human-gated chat turn but not for the unattended
+loop" shape (like sandboxed code execution — see `docs/ROADMAP.md`) has a
+real answer for keeping it out of autopilot's reach, not just a flag that
+says so.
+
 ## Tailscale access layer
 
 By default (`python install.py`), the web GUI/API is published on the

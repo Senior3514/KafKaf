@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """The one KafKaf install command — works the same on Linux, macOS, and Windows.
 
-    python install.py                                     # web GUI on :8420, autopilot ON by default
+    python install.py                                     # web GUI on :8420, autonomy=autonomous (autopilot ON)
     TS_AUTHKEY=tskey-... python install.py --tailscale     # private tailnet only, no public port
-    python install.py --no-autopilot                       # chat only, no unattended growth loop
+    python install.py --autonomy assisted                  # skills available, no unattended growth loop
+    python install.py --autonomy observe                   # chat only, no tools, no autopilot
 
-Flags combine: `python install.py --tailscale --no-autopilot` gets you both.
+Flags combine: `python install.py --tailscale --autonomy assisted` gets you both.
 
 Brings up the full backend + web GUI (Docker: Ollama + KafKaf), pulls the
 default local model, and prints next steps for the CLI and desktop app.
@@ -15,12 +16,14 @@ Requires Docker (with the Compose plugin) — https://docs.docker.com/get-docker
 over your private Tailscale network (no port published to the public
 internet at all). See docs/SETUP.md for how to get a TS_AUTHKEY.
 
-Autopilot (kafkaf-autopilot, the unattended teach-and-train curriculum
-loop) runs by default — KafKaf is meant to keep learning and growing on
-its own, not just answer questions, and a real emergency stop
+--autonomy is a single, legible dial for how much KafKaf can do on its
+own — see docs/SETUP.md#autonomy-levels for the full table. Defaults to
+'autonomous': skills (tools) are available, and autopilot (the unattended
+teach-and-train curriculum loop) runs by default — a real emergency stop
 (`kafkaf-autopilot-ctl stop`) is always available if you want it paused.
-Pass --no-autopilot for a chat-only install. See docs/GUIDE.md for
-pacing/cost tuning (defaults are conservative, not "as fast as possible").
+`--no-autopilot` is a narrower override: stay at --autonomy autonomous but
+skip only the autopilot container. See docs/GUIDE.md for autopilot pacing/
+cost tuning (defaults are conservative, not "as fast as possible").
 """
 
 import argparse
@@ -81,14 +84,27 @@ def main() -> None:
         help="Reachable only over your private tailnet — no public port published.",
     )
     parser.add_argument(
+        "--autonomy",
+        choices=["observe", "assisted", "autonomous"],
+        default="autonomous",
+        help="How much KafKaf can do on its own: 'observe' (chat only), "
+        "'assisted' (skills available, no unattended loop), 'autonomous' "
+        "(skills + autopilot running by default — the default). "
+        "See docs/SETUP.md#autonomy-levels.",
+    )
+    parser.add_argument(
         "--no-autopilot",
         action="store_true",
-        help="Chat only — skip the unattended teach-and-train curriculum loop "
-        "(it runs by default; stop/resume a running one anytime with "
-        "`kafkaf-autopilot-ctl`).",
+        help="Narrower override: keep --autonomy autonomous's skills enabled, "
+        "but skip only the autopilot container (stop/resume a running one "
+        "anytime with `kafkaf-autopilot-ctl` instead).",
     )
     args = parser.parse_args()
-    autopilot = not args.no_autopilot
+    autopilot = args.autonomy == "autonomous" and not args.no_autopilot
+    # Read by deploy/docker-compose.yml (${KAFKAF_AUTONOMY_LEVEL:-autonomous})
+    # — this is a CLI flag, not something the user is expected to export
+    # themselves, so set it here for the docker compose subprocess to inherit.
+    os.environ["KAFKAF_AUTONOMY_LEVEL"] = args.autonomy
 
     if shutil.which("docker") is None:
         print(
@@ -123,6 +139,7 @@ def main() -> None:
 
     print()
     print("KafKaf is up.")
+    print(f"  Autonomy:   {args.autonomy}")
     if args.tailscale:
         print("  Not published publicly — reachable only on your tailnet.")
         print("  Run `tailscale status` to find it, or check the admin console;")

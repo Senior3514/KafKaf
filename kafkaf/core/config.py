@@ -1,8 +1,14 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="KAFKAF_")
+
+    # A single, legible dial instead of scattered feature flags — see
+    # kafkaf/core/autonomy.py for what each tier unlocks.
+    autonomy_level: Literal["observe", "assisted", "autonomous"] = "autonomous"
 
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen3:4b"

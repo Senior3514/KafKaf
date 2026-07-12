@@ -2,16 +2,19 @@
 # Linux/macOS shell twin of ../install.py, for the default (publicly
 # published) mode. For no public exposure at all, use:
 #   TS_AUTHKEY=tskey-... python ../install.py --tailscale
-# Autopilot (unattended teach-and-train) runs by default here too — set
-# KAFKAF_NO_AUTOPILOT=1 for a chat-only install.
+# KAFKAF_AUTONOMY_LEVEL selects observe/assisted/autonomous (default
+# autonomous, see docs/SETUP.md#autonomy-levels). Autopilot runs by
+# default at the autonomous level too — set KAFKAF_NO_AUTOPILOT=1 for a
+# narrower override (autonomous, but no autopilot container).
 set -euo pipefail
 
 MODEL="${KAFKAF_OLLAMA_MODEL:-qwen3:4b}"
+export KAFKAF_AUTONOMY_LEVEL="${KAFKAF_AUTONOMY_LEVEL:-autonomous}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FILES=(-f docker-compose.yml -f docker-compose.local.yml)
 AUTOPILOT_LABEL=""
-if [[ -z "${KAFKAF_NO_AUTOPILOT:-}" ]]; then
+if [[ "$KAFKAF_AUTONOMY_LEVEL" == "autonomous" && -z "${KAFKAF_NO_AUTOPILOT:-}" ]]; then
   FILES+=(-f docker-compose.autopilot.yml)
   AUTOPILOT_LABEL="autopilot"
 fi
@@ -33,7 +36,7 @@ echo "==> Pulling local model: $MODEL"
 (cd "$SCRIPT_DIR" && docker compose "${FILES[@]}" exec -T ollama ollama pull "$MODEL")
 
 printf 'local\n%s\n' "$AUTOPILOT_LABEL" > "$SCRIPT_DIR/.compose-mode"
-echo "==> KafKaf is up. Backend: http://localhost:8420  (try: curl http://localhost:8420/health)"
+echo "==> KafKaf is up (autonomy: $KAFKAF_AUTONOMY_LEVEL). Backend: http://localhost:8420  (try: curl http://localhost:8420/health)"
 if [[ -n "$AUTOPILOT_LABEL" ]]; then
   echo "==> Autopilot running — stop anytime: docker compose -f docker-compose.yml exec autopilot kafkaf-autopilot-ctl stop"
 fi

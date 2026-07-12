@@ -19,6 +19,9 @@ services:
     environment:
       KAFKAF_OLLAMA_HOST: http://ollama:11434
       KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen3:4b}
+      # observe (chat only) / assisted (skills, no autopilot) / autonomous
+      # (skills + autopilot by default) — see docs/SETUP.md#autonomy-levels.
+      KAFKAF_AUTONOMY_LEVEL: ${KAFKAF_AUTONOMY_LEVEL:-autonomous}
       KAFKAF_DB_PATH: /data/kafkaf.db
       # Without this, the default checkpoint path is relative and lands in
       # the container's ephemeral working dir, not the mounted volume below

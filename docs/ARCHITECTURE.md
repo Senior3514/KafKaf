@@ -271,6 +271,29 @@ This is explicitly not a multi-tenant-safe design — see
 pattern as a future upgrade if KafKaf is ever exposed beyond a single
 trusted user/household.
 
+## Autonomy levels
+
+`core/autonomy.py` defines three named tiers (`observe`/`assisted`/
+`autonomous`, `KAFKAF_AUTONOMY_LEVEL`, default `autonomous`) as the single
+seam that governs how much KafKaf can do without a human reviewing each
+step, instead of that judgment being scattered across independent flags.
+`skills_allowed()` gates `/chat`'s `skills: true` (checked in `core/api.py`
+before `council.handle_chat` is ever called — a 400 at `observe`, not a
+silent no-op); `autopilot_default_on()` is read by `install.py`/`deploy/
+install.sh` to decide whether the autopilot container is included at all.
+`GET /autonomy` and `kafkaf autonomy` expose the current level and what it
+unlocks, matching the audit log's "nothing about what KafKaf can do should
+be a surprise" principle.
+
+The tier boundary that matters most: `autonomous` is the ceiling for what
+runs *unattended* (autopilot). A capability that's reasonable for a human
+to trigger per chat turn but not for the unattended loop to reach on its
+own — sandboxed code execution is the concrete example, see
+`docs/ROADMAP.md` — doesn't get a green light just because
+`--autonomy autonomous` is set; it needs its own, separate gate that
+specifically keeps it out of autopilot's tool access, not just a higher
+number on this dial.
+
 ## Privacy
 
 Nothing leaves the machine running KafKaf unless a persona/query explicitly

@@ -80,9 +80,10 @@ See `docs/SETUP.md#tailscale-access-layer` for how to get a key.
 
 Autopilot (unattended teach-and-train) runs **by default** — KafKaf keeps
 learning on its own out of the box, with a real emergency stop always
-available (`kafkaf-autopilot-ctl stop`). Chat-only install? Add
-`--no-autopilot` (combines with `--tailscale`) — see
-`docs/GUIDE.md#4-growing-your-own-model`.
+available (`kafkaf-autopilot-ctl stop`). Want less autonomy? One dial,
+`--autonomy {observe,assisted,autonomous}` (combines with `--tailscale`),
+controls how much KafKaf can do without a human approving each step — see
+`docs/SETUP.md#autonomy-levels`.
 
 ## Development
 
