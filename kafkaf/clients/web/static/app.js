@@ -2,6 +2,7 @@ const chatEl = document.getElementById("chat");
 const formEl = document.getElementById("composer");
 const inputEl = document.getElementById("message");
 const sendBtn = formEl.querySelector(".send-btn");
+const brainSelectEl = document.getElementById("brain-select");
 
 const SESSION_KEY = "kafkaf-session-id";
 let sessionId = localStorage.getItem(SESSION_KEY);
@@ -9,6 +10,12 @@ if (!sessionId) {
   sessionId = crypto.randomUUID();
   localStorage.setItem(SESSION_KEY, sessionId);
 }
+
+const BRAIN_KEY = "kafkaf-brain";
+brainSelectEl.value = localStorage.getItem(BRAIN_KEY) || "";
+brainSelectEl.addEventListener("change", () => {
+  localStorage.setItem(BRAIN_KEY, brainSelectEl.value);
+});
 
 function addBubble(role, text) {
   const bubble = document.createElement("div");
@@ -45,12 +52,16 @@ formEl.addEventListener("submit", async (event) => {
     const response = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, session_id: sessionId }),
+      body: JSON.stringify({
+        message,
+        session_id: sessionId,
+        brain: brainSelectEl.value || null,
+      }),
     });
-    if (!response.ok) {
-      throw new Error(`Backend returned ${response.status}`);
-    }
     const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || `Backend returned ${response.status}`);
+    }
     addBubble("assistant", data.reply);
   } catch (err) {
     addBubble("error", `שגיאה: ${err.message}`);

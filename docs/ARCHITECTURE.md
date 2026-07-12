@@ -13,6 +13,8 @@ kafkaf/
     personas/     # persona configs (system prompt, name)
     memory/       # persistent per-session conversation history (SQLite)
     enrichment/   # the training corpus + teach/distill/train orchestration
+      autopilot.py  # unattended curriculum loop (`kafkaf-autopilot`)
+      topics.py      # default + custom curriculum for autopilot
     db.py         # shared sqlite connection helper (memory + enrichment)
     api.py        # FastAPI app: /health, /chat, / (web GUI), /static
     server.py     # uvicorn entrypoint (`kafkaf-server`)
@@ -30,8 +32,9 @@ deploy/
   docker-compose.yml            # base: ollama + backend, no public ports
   docker-compose.local.yml       # overlay: publish backend on :8420 (default)
   docker-compose.tailscale.yml   # overlay: backend reachable only on your tailnet
-  install.sh                      # one-shot setup script (shell twin of ../install.py)
-  update.sh                        # git pull + rebuild/restart, for a running VPS
+  docker-compose.autopilot.yml    # overlay: unattended teach-and-train container
+  install.sh                       # one-shot setup script (shell twin of ../install.py)
+  update.sh                         # git pull + rebuild/restart, for a running VPS
 install.py         # the one cross-platform install command (Linux/macOS/Windows)
 scripts/
   build_desktop.py  # builds the desktop app into a single-file exe (PyInstaller)
@@ -109,6 +112,20 @@ the exact storage pattern of `core/memory/store.py`:
 - `run_training_step(steps)` — runs `kafkaf/model/train.py`'s training loop
   over unused corpus examples, continuing from the last checkpoint
   (continual learning: "teach and feed it").
+
+`core/enrichment/autopilot.py` automates the teach → train loop
+unattended: it cycles through a curriculum (`topics.py` — a small default,
+or your own file), calls `distill_from_teacher` for each topic, and
+triggers `run_training_step` every few topics. Runs as `kafkaf-autopilot`,
+standalone or as its own Docker service
+(`deploy/docker-compose.autopilot.yml`) sharing the backend's data volume.
+Pacing defaults are conservative on purpose — see `docs/SETUP.md`.
+
+`core/api.py`'s `/chat` accepts an optional `brain` field (e.g. `"own"` or
+`"ollama:llama3"`), resolved through the same registry, so any client (web
+GUI's model dropdown, `kafkaf chat --brain own`) can talk to a specific
+brain — including your own growing model — through the normal chat UI
+instead of only via MCP.
 
 `core/brains/registry.py` resolves a plain string ("ollama:llama3",
 "openai:gpt-4o-mini", "anthropic:claude-3-5-haiku-latest",

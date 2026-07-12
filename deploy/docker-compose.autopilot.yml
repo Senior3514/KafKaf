@@ -1,0 +1,37 @@
+# Optional overlay: runs kafkaf-autopilot continuously on the VPS, teaching
+# and training KafKaf's own model unattended. Combine with the base file and
+# either access-layer overlay:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml -f docker-compose.autopilot.yml up -d --build
+# Tune pacing via env vars (see docs/GUIDE.md) — defaults are deliberately
+# conservative, not "as fast as possible": KAFKAF_AUTOPILOT_TEACHER,
+# KAFKAF_AUTOPILOT_INTERVAL_SECONDS, KAFKAF_AUTOPILOT_TRAIN_EVERY,
+# KAFKAF_AUTOPILOT_TRAIN_STEPS.
+services:
+  autopilot:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        EXTRAS: "[train]"  # autopilot needs torch to run training steps; the backend image doesn't
+    environment:
+      KAFKAF_OLLAMA_HOST: http://ollama:11434
+      KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen2.5:3b}
+      KAFKAF_DB_PATH: /data/kafkaf.db
+      # Shares the backend's checkpoint/corpus — autopilot's growth is what
+      # chat_with_own_model (API/MCP) actually talks to.
+      KAFKAF_OWN_MODEL_CHECKPOINT_PATH: /data/kafkaf-own-model.pt
+    volumes:
+      - backend-data:/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    command:
+      - kafkaf-autopilot
+      - --teacher
+      - "${KAFKAF_AUTOPILOT_TEACHER:-ollama:qwen2.5:3b}"
+      - --interval-seconds
+      - "${KAFKAF_AUTOPILOT_INTERVAL_SECONDS:-300}"
+      - --train-every
+      - "${KAFKAF_AUTOPILOT_TRAIN_EVERY:-5}"
+      - --train-steps
+      - "${KAFKAF_AUTOPILOT_TRAIN_STEPS:-100}"

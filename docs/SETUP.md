@@ -1,5 +1,9 @@
 # Setup
 
+For a single end-to-end walkthrough (VPS install, every interface, growing
+your own model), see `docs/GUIDE.md`. This document is the detailed
+reference each section of that guide links back to.
+
 ## One command, any OS (recommended)
 
 Requires [Docker](https://docs.docker.com/get-docker/) — Linux, macOS, and
@@ -166,6 +170,45 @@ server (running on the host) to share its conversation/corpus data, point
 `KAFKAF_DB_PATH` at a host path that's bind-mounted into the container —
 the default `docker-compose.yml` uses a named volume, which isn't
 host-addressable; that's a documented follow-up, not yet done.
+
+## Autopilot: unattended teach-and-train
+
+`kafkaf-autopilot` (`kafkaf/core/enrichment/autopilot.py`) cycles through a
+curriculum of topics, asks a teacher brain to explain each one, stores the
+answer, and periodically runs a training step — the "lives on the VPS and
+keeps growing on its own" piece. It shares the same corpus/checkpoint as
+the backend and MCP server, so its progress shows up everywhere.
+
+**Via Docker** (recommended for a VPS — runs continuously as its own
+container, sharing the backend's data volume):
+```
+python install.py --autopilot
+```
+or combine directly:
+```
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.local.yml -f deploy/docker-compose.autopilot.yml up -d --build
+```
+Tune it with env vars *before* running the above (Compose bakes them into
+the container's command at start time): `KAFKAF_AUTOPILOT_TEACHER` (default
+`ollama:qwen2.5:3b` — free, local), `KAFKAF_AUTOPILOT_INTERVAL_SECONDS`
+(default `300`), `KAFKAF_AUTOPILOT_TRAIN_EVERY` (default `5`),
+`KAFKAF_AUTOPILOT_TRAIN_STEPS` (default `100`). Watch it:
+`docker compose -f deploy/docker-compose.yml logs -f autopilot`.
+
+**Standalone** (no Docker):
+```
+pip install -e ".[train]"
+kafkaf-autopilot --teacher ollama:qwen2.5:3b --interval-seconds 300
+```
+Run `kafkaf-autopilot --help` for every option, including `--topics-file`
+to teach it your own curriculum instead of the small built-in default
+(`kafkaf/core/enrichment/topics.py`).
+
+The defaults are deliberately conservative, not "as fast as possible" — an
+unattended loop hammering a paid API or a CPU flat-out is a cost/stability
+risk, not a feature. Switching the teacher to `openai:`/`anthropic:`/
+`gemini:` means every cycle is a real, billed API call; know that before
+turning the interval down.
 
 ## Configuration
 

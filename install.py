@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """The one KafKaf install command — works the same on Linux, macOS, and Windows.
 
-    python install.py                # web GUI published on this host's :8420
-    TS_AUTHKEY=tskey-... python install.py --tailscale   # private tailnet only, no public port
+    python install.py                                     # web GUI published on this host's :8420
+    TS_AUTHKEY=tskey-... python install.py --tailscale     # private tailnet only, no public port
+    python install.py --autopilot                          # + unattended teach-and-train loop
+
+Flags combine: `python install.py --tailscale --autopilot` gets you both.
 
 Brings up the full backend + web GUI (Docker: Ollama + KafKaf), pulls the
 default local model, and prints next steps for the CLI and desktop app.
@@ -11,6 +14,9 @@ Requires Docker (with the Compose plugin) — https://docs.docker.com/get-docker
 --tailscale gets you a real "access layer": the backend is reachable ONLY
 over your private Tailscale network (no port published to the public
 internet at all). See docs/SETUP.md for how to get a TS_AUTHKEY.
+
+--autopilot runs kafkaf-autopilot continuously, teaching and training
+KafKaf's own model unattended — see docs/GUIDE.md for pacing/cost tuning.
 """
 
 import argparse
@@ -28,6 +34,7 @@ DEPLOY_DIR = PROJECT_ROOT / "deploy"
 BASE_COMPOSE = DEPLOY_DIR / "docker-compose.yml"
 LOCAL_OVERLAY = DEPLOY_DIR / "docker-compose.local.yml"
 TAILSCALE_OVERLAY = DEPLOY_DIR / "docker-compose.tailscale.yml"
+AUTOPILOT_OVERLAY = DEPLOY_DIR / "docker-compose.autopilot.yml"
 MODE_MARKER = DEPLOY_DIR / ".compose-mode"
 DEFAULT_MODEL = "qwen2.5:3b"
 
@@ -36,9 +43,12 @@ def run(*args: str) -> None:
     subprocess.run(args, check=True)
 
 
-def compose_files(tailscale: bool) -> list[str]:
+def compose_files(tailscale: bool, autopilot: bool) -> list[str]:
     overlay = TAILSCALE_OVERLAY if tailscale else LOCAL_OVERLAY
-    return ["-f", str(BASE_COMPOSE), "-f", str(overlay)]
+    files = ["-f", str(BASE_COMPOSE), "-f", str(overlay)]
+    if autopilot:
+        files += ["-f", str(AUTOPILOT_OVERLAY)]
+    return files
 
 
 def docker_compose(files: list[str], *args: str) -> None:
@@ -63,6 +73,11 @@ def main() -> None:
         action="store_true",
         help="Reachable only over your private tailnet — no public port published.",
     )
+    parser.add_argument(
+        "--autopilot",
+        action="store_true",
+        help="Also run the unattended teach-and-train curriculum loop.",
+    )
     args = parser.parse_args()
 
     if shutil.which("docker") is None:
@@ -80,7 +95,7 @@ def main() -> None:
         )
         raise SystemExit(1)
 
-    files = compose_files(args.tailscale)
+    files = compose_files(args.tailscale, args.autopilot)
 
     print("==> Starting KafKaf (Ollama + backend + web GUI)...")
     docker_compose(files, "up", "-d", "--build")
@@ -91,7 +106,10 @@ def main() -> None:
     print(f"==> Pulling local model: {DEFAULT_MODEL}")
     docker_compose(files, "exec", "-T", "ollama", "ollama", "pull", DEFAULT_MODEL)
 
-    MODE_MARKER.write_text("tailscale\n" if args.tailscale else "local\n")
+    MODE_MARKER.write_text(
+        f"{'tailscale' if args.tailscale else 'local'}\n"
+        f"{'autopilot' if args.autopilot else ''}\n"
+    )
 
     print()
     print("KafKaf is up.")
@@ -102,6 +120,8 @@ def main() -> None:
     else:
         print("  Web GUI:    http://localhost:8420")
         print("  Health:     http://localhost:8420/health")
+    if args.autopilot:
+        print("  Autopilot:  running — `docker compose -f deploy/docker-compose.yml logs -f autopilot`")
     print()
     print("Optional next steps:")
     print('  CLI:        pip install -e ".[dev]"   then   kafkaf chat "hello"')

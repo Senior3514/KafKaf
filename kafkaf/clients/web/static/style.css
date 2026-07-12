@@ -45,6 +45,10 @@ body {
   padding: max(12px, env(safe-area-inset-top)) 16px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .brand {
@@ -56,6 +60,16 @@ body {
   color: var(--muted);
   font-weight: 400;
   font-size: 0.85rem;
+}
+
+.brain-select {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  max-width: 55%;
 }
 
 .chat {

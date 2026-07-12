@@ -10,8 +10,14 @@ from-scratch-trained model that keeps growing as you teach it (see
 `docs/ROADMAP.md`). Every interface — web GUI, desktop app, CLI/terminal —
 is a thin client over the same core API.
 
-This is not a claim of AGI/ASI — no one has built that. It's a practical,
-honest platform for running your own AI, on your own hardware, for free.
+This is not a claim of AGI/ASI — no one has built that, and it isn't where
+this leads no matter how long it grows. See `docs/ROADMAP.md`'s vision
+section for what the actual, honest, worthwhile goal is. It's a practical
+platform for running your own AI, on your own hardware, for free.
+
+**New here? `docs/GUIDE.md` is the single start-to-finish walkthrough** —
+VPS install, every interface, growing your own model, all in one place.
+This README is the short version.
 
 ## Quick start — one command, every OS
 
@@ -71,6 +77,9 @@ TS_AUTHKEY=tskey-... python install.py --tailscale
 ```
 
 See `docs/SETUP.md#tailscale-access-layer` for how to get a key.
+
+Want it to grow on its own, unattended? Add `--autopilot` (combines with
+`--tailscale`) — see `docs/GUIDE.md#4-growing-your-own-model`.
 
 ## Development
 

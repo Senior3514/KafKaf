@@ -60,3 +60,37 @@ def test_web_gui_static_assets():
         css = client.get("/static/style.css")
     assert js.status_code == 200
     assert css.status_code == 200
+
+
+def test_chat_brain_override_used(monkeypatch):
+    class OverrideBrain(Brain):
+        name = "override"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "override-pong"
+
+    monkeypatch.setattr("kafkaf.core.api.get_brain", lambda spec: OverrideBrain())
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s2", "brain": "ollama:llama3"}
+        )
+    assert response.status_code == 200
+    assert response.json()["reply"] == "override-pong"
+
+
+def test_chat_invalid_brain_spec_returns_400():
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s3", "brain": "no-colon-here"}
+        )
+    assert response.status_code == 400
+    assert "detail" in response.json()
+
+
+def test_chat_unknown_provider_returns_400():
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s4", "brain": "bogus:model"}
+        )
+    assert response.status_code == 400

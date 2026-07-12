@@ -25,6 +25,7 @@ kafkaf = "kafkaf.clients.cli.main:app"
 kafkaf-server = "kafkaf.core.server:run"
 kafkaf-mcp = "kafkaf.mcp.server:main"
 kafkaf-desktop = "kafkaf.clients.desktop.main:main"
+kafkaf-autopilot = "kafkaf.core.enrichment.autopilot:app"
 
 [build-system]
 requires = ["hatchling"]

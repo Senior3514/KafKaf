@@ -1,5 +1,26 @@
 # Roadmap
 
+## Vision — what "done" actually looks like
+
+KafKaf's end-state is **a small, private, specialized language model that
+you own, that runs entirely on your own hardware, and that keeps getting
+better the more you teach and train it** — via facts you feed it directly,
+via distillation from other models (local or API), and via the autopilot
+curriculum loop that can run unattended on a VPS. Wrapped in interfaces
+(web, desktop, CLI, MCP) that make talking to it and teaching it as easy as
+talking to any other assistant.
+
+This is **not** a path to AGI/ASI, and it never will be, no matter how long
+it runs or how much it's taught. That's not a limitation of this particular
+implementation — it's true of every system built this way, by anyone,
+because "a small model taught more facts for longer" is not the same kind
+of thing as general intelligence; there is no known way to get from one to
+the other by scaling this loop. Saying otherwise would be marketing, not
+engineering, and this project is built to be honest about what it actually
+is. What it actually is — a growing, private, personal AI you fully
+own — is a real and worthwhile thing to build, and it's what every phase
+below is aimed at.
+
 KafKaf is built in phases; each one ships something runnable. No phase
 depends on a big-bang release — "grow it over time."
 
@@ -29,17 +50,26 @@ depends on a big-bang release — "grow it over time."
       bindings pywebview can't bundle standalone — see the caveat in
       `docs/SETUP.md`; Windows (WebView2) and macOS (WebKit) don't have
       this issue since the OS provides the engine.
-- [x] **Phase 6 — Own-model training track (initial slice)**: a small
-      transformer we design and pretrain ourselves (`kafkaf/model/` —
-      byte-level nanoGPT-style GPT, no downloaded checkpoint), a corpus +
-      continual-training loop (`kafkaf/core/enrichment/`), teacher brains for
-      OpenAI/Anthropic/Gemini/Ollama (`kafkaf/core/brains/`), and a local MCP
-      server (`kafkaf/mcp/server.py`, stdio, single-user) exposing
-      `teach_fact`, `distill_from_teacher`, `train_step`, `status`, and
-      `chat_with_own_model` — usable today from Claude Desktop/Code. Not yet
-      done: wiring `OwnModelBrain` into the council's default routing
-      (deliberately deferred until quality warrants it), scheduled/unattended
-      training runs, and a subword tokenizer upgrade.
+- [x] **Phase 6 — Own-model training track**: a small transformer we design
+      and pretrain ourselves (`kafkaf/model/` — byte-level nanoGPT-style
+      GPT, no downloaded checkpoint), a corpus + continual-training loop
+      (`kafkaf/core/enrichment/`), teacher brains for OpenAI/Anthropic/
+      Gemini/Ollama (`kafkaf/core/brains/`), and a local MCP server
+      (`kafkaf/mcp/server.py`, stdio, single-user) exposing `teach_fact`,
+      `distill_from_teacher`, `train_step`, `status`, and
+      `chat_with_own_model` — usable today from Claude Desktop/Code. The
+      web GUI, CLI, and API can all also talk to it directly via an optional
+      `brain` override (e.g. `kafkaf chat --brain own`), not just through
+      MCP. **Unattended growth**: `kafkaf-autopilot`
+      (`kafkaf/core/enrichment/autopilot.py`) cycles a curriculum of topics
+      through a teacher and trains periodically, runnable standalone or as
+      its own Docker service (`deploy/docker-compose.autopilot.yml`,
+      `install.py --autopilot`) — deliberately paced, not "as fast as
+      possible," since an unattended loop hammering a paid API or a CPU
+      flat-out is a cost/stability risk. Not yet done: wiring
+      `OwnModelBrain` into the council's default *routing* (it's reachable
+      today via explicit override, just not chosen automatically), and a
+      subword tokenizer upgrade.
 - [x] **Phase 7 — Deployment automation + access layer**: `install.py` at
       the repo root is the one cross-platform install command (Linux/macOS/
       Windows, since it's Python rather than a shell script); `deploy/
