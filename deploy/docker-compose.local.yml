@@ -1,0 +1,8 @@
+# Default overlay: publish the backend (web GUI + API) on the host's public
+# interface, same as before. Use with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# For no public exposure at all, use docker-compose.tailscale.yml instead.
+services:
+  backend:
+    ports:
+      - "8420:8420"

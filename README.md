@@ -61,6 +61,17 @@ locally. To pull the latest code from the repo and rebuild/restart:
 ./deploy/update.sh
 ```
 
+By default the web GUI/API is published on the VPS's public IP at `:8420`.
+For a real private access layer instead — reachable only from your own
+devices, no public port at all — install with
+[Tailscale](https://tailscale.com):
+
+```
+TS_AUTHKEY=tskey-... python install.py --tailscale
+```
+
+See `docs/SETUP.md#tailscale-access-layer` for how to get a key.
+
 ## Development
 
 ```

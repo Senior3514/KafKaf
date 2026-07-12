@@ -9,3 +9,5 @@ dist/
 build/
 .pytest_cache/
 node_modules/
+deploy/.compose-mode
+*.spec

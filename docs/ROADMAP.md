@@ -40,14 +40,21 @@ depends on a big-bang release — "grow it over time."
       done: wiring `OwnModelBrain` into the council's default routing
       (deliberately deferred until quality warrants it), scheduled/unattended
       training runs, and a subword tokenizer upgrade.
-- [x] **Phase 7 — Deployment automation (initial slice)**: `install.py` at
+- [x] **Phase 7 — Deployment automation + access layer**: `install.py` at
       the repo root is the one cross-platform install command (Linux/macOS/
       Windows, since it's Python rather than a shell script); `deploy/
       update.sh` pulls the latest commit and rebuilds/restarts a running VPS
-      deployment. Not yet done: contribution docs for the public release,
-      and the docker-compose named-volume → bind-mount fix noted in the
-      phase 6 MCP section (only needed if the dockerized backend and a
-      host-run MCP server must share one sqlite file).
+      deployment in whichever mode it was installed with. `install.py
+      --tailscale` gives a real private access layer — the backend is
+      reachable only on your own tailnet, no public port at all
+      (`deploy/docker-compose.tailscale.yml`, verified via `docker compose
+      config` to merge correctly — no Docker daemon was available in the dev
+      sandbox to run it live, so real tailnet connectivity is confirmed on
+      first real use). Ollama's port is loopback-only in every mode. Not yet
+      done: contribution docs for the public release, and the docker-compose
+      named-volume → bind-mount fix noted in the phase 6 MCP section (only
+      needed if the dockerized backend and a host-run MCP server must share
+      one sqlite file).
 
 ## Notes on scope
 

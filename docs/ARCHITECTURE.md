@@ -27,9 +27,11 @@ kafkaf/
     server.py     # local MCP server exposing enrichment tools over stdio
 deploy/
   Dockerfile
-  docker-compose.yml   # ollama + backend, for local/VPS use
-  install.sh            # one-shot setup script (shell twin of ../install.py)
-  update.sh              # git pull + rebuild/restart, for a running VPS
+  docker-compose.yml            # base: ollama + backend, no public ports
+  docker-compose.local.yml       # overlay: publish backend on :8420 (default)
+  docker-compose.tailscale.yml   # overlay: backend reachable only on your tailnet
+  install.sh                      # one-shot setup script (shell twin of ../install.py)
+  update.sh                        # git pull + rebuild/restart, for a running VPS
 install.py         # the one cross-platform install command (Linux/macOS/Windows)
 scripts/
   build_desktop.py  # builds the desktop app into a single-file exe (PyInstaller)
@@ -127,10 +129,35 @@ event loop to starve). It is intentionally scoped to local/single-user use
 Claude Desktop config at it. It is **not** a Docker service — see
 `docs/SETUP.md` for why.
 
+## Access & networking
+
+`deploy/docker-compose.yml` is a base file with no public ports at all —
+it's always combined with one of two overlays (`install.py` picks
+automatically):
+
+- `docker-compose.local.yml` (default): publishes the backend on the host's
+  `:8420`, same as a plain `docker run -p`.
+- `docker-compose.tailscale.yml`: adds a `tailscale` sidecar container and
+  gives the `backend` container `network_mode: service:tailscale` —
+  publishes *nothing* to the host or the public internet. The backend is
+  only reachable from devices on your own tailnet, via an HTTPS URL
+  Tailscale assigns automatically (Tailscale Serve). This is the officially
+  documented Tailscale + Docker Compose sidecar pattern, not a custom
+  workaround. See `docs/SETUP.md` for setup.
+
+Ollama's port is bound to `127.0.0.1` in the base file regardless of which
+overlay is active — it's an internal dependency of the backend, never a
+product surface, so there's no reason for it to ever be reachable from
+outside the host.
+
+`install.py` records which overlay was used in `deploy/.compose-mode` (git-
+ignored, host-local state) so `deploy/update.sh` can rebuild in the same
+mode without the flag needing to be remembered/re-passed.
+
 ## Privacy
 
 Nothing leaves the machine running KafKaf unless a persona/query explicitly
 opts into an API-backed brain, or an MCP `distill_from_teacher` call is
 explicitly pointed at one. The default docker-compose stack talks only to
-the local Ollama container. API keys for teacher models are read only from
-environment variables (`Settings`) — never hardcoded.
+the local Ollama container. API keys for teacher models — and the Tailscale
+auth key — are read only from environment variables, never hardcoded.

@@ -26,7 +26,41 @@ instead; it does the same thing.
 ./deploy/update.sh
 ```
 
-Pulls the latest commit and rebuilds/restarts the Docker stack in place.
+Pulls the latest commit and rebuilds/restarts the Docker stack, using
+whichever mode (`local`/`tailscale`) it was installed with (`install.py`
+records this in `deploy/.compose-mode`).
+
+## Tailscale access layer
+
+By default (`python install.py`), the web GUI/API is published on the
+host's public interface at `:8420` — fine for testing, but on a real VPS
+you may not want port 8420 reachable by the whole internet. `--tailscale`
+mode gives you a real access layer instead: the backend is reachable
+**only** over your private [Tailscale](https://tailscale.com) network (a
+tailnet) — no public port is published at all.
+
+1. Get an auth key: Tailscale admin console → Settings → Keys → Generate
+   auth key. A **reusable, tagged** key is the right choice for an
+   unattended container (see
+   [Tailscale's auth keys docs](https://tailscale.com/kb/1085/auth-keys)).
+2. Run:
+   ```
+   TS_AUTHKEY=tskey-... python install.py --tailscale
+   ```
+3. KafKaf is now reachable only from devices on your tailnet, at an HTTPS
+   URL Tailscale assigns automatically (MagicDNS), e.g.
+   `https://kafkaf.<your-tailnet>.ts.net` — check `tailscale status` or the
+   admin console for the exact address. Ollama's port also stays
+   loopback-only regardless of mode; it's an internal dependency, never a
+   public surface.
+
+Under the hood: a `tailscale` sidecar container joins your tailnet, and the
+`backend` container shares its network namespace
+(`deploy/docker-compose.tailscale.yml`, the officially documented Tailscale
+Docker Compose sidecar pattern) — so nothing is exposed until it's
+explicitly proxied through Tailscale Serve. Updates
+(`./deploy/update.sh`) automatically stay in this mode once installed this
+way.
 
 ## Web GUI
 

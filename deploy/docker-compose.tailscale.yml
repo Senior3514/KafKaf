@@ -1,0 +1,56 @@
+# Access-layer overlay: the backend is reachable ONLY over your private
+# Tailscale network (tailnet) — no public port is published at all. Use with
+# the base file (never with docker-compose.local.yml, which publishes
+# publicly):
+#   TS_AUTHKEY=tskey-... docker compose -f docker-compose.yml -f docker-compose.tailscale.yml up -d
+# See docs/SETUP.md for how to get a TS_AUTHKEY. `python install.py --tailscale`
+# does this for you.
+configs:
+  ts-serve:
+    content: |
+      {
+        "TCP": {
+          "443": { "HTTPS": true }
+        },
+        "Web": {
+          "$${TS_CERT_DOMAIN}:443": {
+            "Handlers": {
+              "/": { "Proxy": "http://127.0.0.1:8420" }
+            }
+          }
+        }
+      }
+
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: kafkaf
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY — see docs/SETUP.md#tailscale-access-layer}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_USERSPACE: "false"
+      TS_AUTH_ONCE: "true"
+    configs:
+      - source: ts-serve
+        target: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+
+  # Shares tailscale's network namespace entirely: no ports of its own, and
+  # "127.0.0.1:8420" in the serve config above means the backend's own port,
+  # since they're now the same network stack. This is the pattern Tailscale
+  # itself documents for exposing one container's service over the tailnet.
+  backend:
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+      - ollama
+
+volumes:
+  tailscale-state:

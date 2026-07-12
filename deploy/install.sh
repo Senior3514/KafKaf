@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Linux/macOS shell twin of ../install.py, for the default (publicly
+# published) mode. For no public exposure at all, use:
+#   TS_AUTHKEY=tskey-... python ../install.py --tailscale
 set -euo pipefail
 
 MODEL="${KAFKAF_OLLAMA_MODEL:-qwen2.5:3b}"
@@ -10,7 +13,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 echo "==> Starting KafKaf stack (ollama + backend)..."
-(cd "$SCRIPT_DIR" && docker compose up -d --build)
+(cd "$SCRIPT_DIR" && docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build)
 
 echo "==> Waiting for Ollama to be ready..."
 until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do
@@ -18,6 +21,7 @@ until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do
 done
 
 echo "==> Pulling local model: $MODEL"
-(cd "$SCRIPT_DIR" && docker compose exec -T ollama ollama pull "$MODEL")
+(cd "$SCRIPT_DIR" && docker compose -f docker-compose.yml -f docker-compose.local.yml exec -T ollama ollama pull "$MODEL")
 
+echo "local" > "$SCRIPT_DIR/.compose-mode"
 echo "==> KafKaf is up. Backend: http://localhost:8420  (try: curl http://localhost:8420/health)"
