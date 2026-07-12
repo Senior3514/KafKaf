@@ -74,11 +74,13 @@ orchestration logic is duplicated per client:
 ## Local model runtime
 
 [Ollama](https://ollama.com) is the default local inference engine — simplest
-to self-host, and it serves quantized open models (Llama 3, Qwen2.5, Phi-3,
-Gemma2, ...). Pick the model size to match available RAM/VRAM; the default in
-`deploy/docker-compose.yml` is a small model that runs reasonably on CPU.
-API-backed models (Claude, GPT, etc., via a user-supplied key) are meant to be
-opt-in extra brains later — never required for KafKaf to work.
+to self-host, and it serves quantized open models (Qwen3, Qwen2.5, Llama 3,
+Phi-4, Gemma, ...). The shipped default is `qwen3:4b`, chosen as the best
+verified speed/quality balance for modest hardware (~8GB RAM, CPU-only is
+fine) — see `docs/SETUP.md#choosing-your-model` for the full hardware-tiered
+guide (a lighter CPU-constrained fallback and a heavier GPU/16GB+ upgrade
+tier). API-backed models (Claude, GPT, etc., via a user-supplied key) are
+meant to be opt-in extra brains later — never required for KafKaf to work.
 
 ## Council / multi-brain pattern
 
@@ -93,7 +95,7 @@ Mixture-of-Agents pattern (Wang et al. 2024, arXiv:2406.04692, cited in
 version of "multiple brains," not a claim of general intelligence.
 
 Configured via `KAFKAF_COUNCIL_BRAINS` (comma-separated specs, e.g.
-`"ollama:llama3,ollama:qwen2.5:3b"`), triggered per-request: `/chat`'s
+`"ollama:llama3,ollama:qwen3:4b"`), triggered per-request: `/chat`'s
 `council: true`, `kafkaf chat --council` / `kafkaf repl --council`, or the
 web GUI's council toggle (which disables the brain dropdown — council mode
 picks its own brains from config, not a single override).
@@ -112,16 +114,20 @@ sees/returns plain text, so skills work the same way across Ollama, every
 API brain, and eventually the small owned model, without touching the
 `Brain` interface per provider.
 
-`core/skills/registry.py` (`ALL_SKILLS`/`SKILLS_BY_NAME`) lists the ten
+`core/skills/registry.py` (`ALL_SKILLS`/`SKILLS_BY_NAME`) lists the eleven
 shipped skills — `web_search` (DuckDuckGo HTML, no key), `web_fetch`,
 `calculator` (safe `ast`-based evaluator, never `eval`/`exec`),
 `current_datetime`, `memory_search` (queries the enrichment corpus),
 `files` (read/write/list confined to `KAFKAF_SKILLS_WORKSPACE_DIR`, with
-path-traversal rejected), `reminders` (persistent, its own sqlite table
-via `core/skills/store.py`), `unit_convert`, `rss`, and `weather`
-(Open-Meteo, no key). Each `Skill.run()` takes and returns plain text —
-one argument, not multi-field JSON — since small local models format that
-far more reliably than structured calls.
+path-traversal rejected), `document_search` (keyword/paragraph-chunk
+search over that same workspace's file *content* — no vector DB or
+embeddings, just `re`-based tokenizing and overlap scoring, sharing the
+sandboxing helper in `core/skills/sandbox.py` with `files`), `reminders`
+(persistent, its own sqlite table via `core/skills/store.py`),
+`unit_convert`, `rss`, and `weather` (Open-Meteo, no key). Each
+`Skill.run()` takes and returns plain text — one argument, not multi-field
+JSON — since small local models format that far more reliably than
+structured calls.
 
 Wired into `council.handle_chat()` as `use_skills: bool`, mutually
 exclusive with council mode for this slice (council mode takes precedence

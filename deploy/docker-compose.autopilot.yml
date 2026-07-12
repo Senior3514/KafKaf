@@ -17,12 +17,12 @@ services:
         EXTRAS: "[train]"  # autopilot needs torch to run training steps; the backend image doesn't
     environment:
       KAFKAF_OLLAMA_HOST: http://ollama:11434
-      KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen2.5:3b}
+      KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen3:4b}
       KAFKAF_DB_PATH: /data/kafkaf.db
       # Shares the backend's checkpoint/corpus — autopilot's growth is what
       # chat_with_own_model (API/MCP) actually talks to.
       KAFKAF_OWN_MODEL_CHECKPOINT_PATH: /data/kafkaf-own-model.pt
-      AUTOPILOT_TEACHER: ${KAFKAF_AUTOPILOT_TEACHER:-ollama:qwen2.5:3b}
+      AUTOPILOT_TEACHER: ${KAFKAF_AUTOPILOT_TEACHER:-ollama:qwen3:4b}
       AUTOPILOT_INTERVAL_SECONDS: ${KAFKAF_AUTOPILOT_INTERVAL_SECONDS:-300}
       AUTOPILOT_TRAIN_EVERY: ${KAFKAF_AUTOPILOT_TRAIN_EVERY:-5}
       AUTOPILOT_TRAIN_STEPS: ${KAFKAF_AUTOPILOT_TRAIN_STEPS:-100}

@@ -1,6 +1,7 @@
 from kafkaf.core.skills.base import Skill
 from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
+from kafkaf.core.skills.document_search import DocumentSearchSkill
 from kafkaf.core.skills.files import FilesSkill
 from kafkaf.core.skills.memory_search import MemorySearchSkill
 from kafkaf.core.skills.reminders import RemindersSkill
@@ -17,6 +18,7 @@ ALL_SKILLS: list[Skill] = [
     DateTimeSkill(),
     MemorySearchSkill(),
     FilesSkill(),
+    DocumentSearchSkill(),
     RemindersSkill(),
     UnitConvertSkill(),
     RssSkill(),

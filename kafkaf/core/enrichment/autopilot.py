@@ -176,7 +176,7 @@ def autopilot(
     teacher: str = typer.Option(
         None,
         help="Comma-separated teacher specs to rotate through, e.g. "
-        "'ollama:llama3,ollama:qwen2.5:3b'. Defaults to the configured Ollama model.",
+        "'ollama:llama3,ollama:qwen3:4b'. Defaults to the configured Ollama model.",
     ),
     topics_file: str = typer.Option(None, help="Custom newline-separated topics file. Defaults to a small built-in curriculum."),
     interval_seconds: int = typer.Option(DEFAULT_INTERVAL_SECONDS, help="Pause between topics."),

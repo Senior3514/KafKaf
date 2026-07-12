@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="KAFKAF_")
 
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:3b"
+    ollama_model: str = "qwen3:4b"
     db_path: str = "kafkaf.db"
     host: str = "0.0.0.0"
     port: int = 8420
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-1.5-flash"
 
-    # Comma-separated brain specs for council mode, e.g. "ollama:llama3,ollama:qwen2.5:3b".
+    # Comma-separated brain specs for council mode, e.g. "ollama:llama3,ollama:qwen3:4b".
     council_brains: str | None = None
 
     # Sandboxed directory the "files" skill is confined to.

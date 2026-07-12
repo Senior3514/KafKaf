@@ -4,7 +4,7 @@
 #   TS_AUTHKEY=tskey-... python ../install.py --tailscale
 set -euo pipefail
 
-MODEL="${KAFKAF_OLLAMA_MODEL:-qwen2.5:3b}"
+MODEL="${KAFKAF_OLLAMA_MODEL:-qwen3:4b}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if ! command -v docker >/dev/null 2>&1; then

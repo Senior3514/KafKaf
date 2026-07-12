@@ -75,7 +75,7 @@ growing model are shared across all of them.
 | **MCP** (Claude Desktop/Code) | `pip install -e ".[mcp,train]"` then `kafkaf-mcp`, wired into `claude_desktop_config.json` — see `docs/SETUP.md`. This is also how you manually teach/train (below), not just chat. |
 
 **Council mode** — instead of one model answering, set
-`KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen2.5:3b` (add API models if
+`KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen3:4b` (add API models if
 you have keys) and every configured brain answers your question in
 parallel; one gets synthesized into a final reply. Real, working
 "get several models to help," not training — see `docs/SETUP.md`.
@@ -83,11 +83,12 @@ parallel; one gets synthesized into a final reply. Real, working
 **Skills mode** — flip the skills toggle (or `--skills` / `{"skills": true}`)
 and the brain can actually *use tools* mid-conversation instead of only
 talking: real web search, a calculator, reading/writing sandboxed files,
-persistent reminders, unit conversion, RSS feeds, weather, and searching
-what your own model has already been taught — ten skills, all working with
-no API key required. This is the ReAct pattern (ask a model to act, not
-just answer), and it works the same way regardless of which brain is
-answering. Mutually exclusive with council mode for now. See
+searching what's actually written in those files (keyword "RAG-lite," no
+vector DB), persistent reminders, unit conversion, RSS feeds, weather, and
+searching what your own model has already been taught — eleven skills, all
+working with no API key required. This is the ReAct pattern (ask a model to
+act, not just answer), and it works the same way regardless of which brain
+is answering. Mutually exclusive with council mode for now. See
 `docs/SETUP.md` for the full list and `docs/ARCHITECTURE.md` for how it
 works under the hood.
 
@@ -128,7 +129,7 @@ your local Ollama model as the teacher (free, no API cost). Tune it via env
 vars before installing:
 
 ```bash
-KAFKAF_AUTOPILOT_TEACHER=ollama:qwen2.5:3b \
+KAFKAF_AUTOPILOT_TEACHER=ollama:qwen3:4b \
 KAFKAF_AUTOPILOT_INTERVAL_SECONDS=300 \
 KAFKAF_AUTOPILOT_TRAIN_EVERY=5 \
 KAFKAF_AUTOPILOT_TRAIN_STEPS=100 \
@@ -137,7 +138,7 @@ python install.py --autopilot
 
 **Many teachers, not just one** — comma-separate several specs and
 autopilot rotates through them, one topic taught by a different model each
-time: `KAFKAF_AUTOPILOT_TEACHER=ollama:llama3,ollama:qwen2.5:3b,openai:gpt-4o-mini`.
+time: `KAFKAF_AUTOPILOT_TEACHER=ollama:llama3,ollama:qwen3:4b,openai:gpt-4o-mini`.
 Switching in an API model (`openai:...`, `anthropic:...`, `gemini:...`)
 means every cycle involving it makes a real, billed API call — fine
 deliberately, but know that before turning the interval down or adding

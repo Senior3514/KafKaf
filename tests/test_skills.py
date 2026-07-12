@@ -4,6 +4,7 @@ from kafkaf.core.enrichment import store as enrichment_store
 from kafkaf.core.skills import store as skills_store
 from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
+from kafkaf.core.skills.document_search import DocumentSearchSkill
 from kafkaf.core.skills.files import FilesSkill
 from kafkaf.core.skills.memory_search import MemorySearchSkill
 from kafkaf.core.skills.reminders import RemindersSkill
@@ -103,6 +104,40 @@ class TestFiles:
     async def test_absolute_path_traversal_blocked(self):
         result = await FilesSkill().run("write /etc/passwd\npwned")
         assert "escapes" in result
+
+
+class TestDocumentSearch:
+    @pytest.mark.asyncio
+    async def test_finds_matching_content_across_files(self):
+        await FilesSkill().run("write notes.txt\nKafKaf is a private, self-hosted AI platform.")
+        await FilesSkill().run("write other.txt\nThis file is about something unrelated.")
+        result = await DocumentSearchSkill().run("private self-hosted")
+        assert "notes.txt" in result
+        assert "other.txt" not in result
+
+    @pytest.mark.asyncio
+    async def test_ranks_by_relevance(self):
+        await FilesSkill().run("write a.txt\nkafkaf kafkaf kafkaf")
+        await FilesSkill().run("write b.txt\nkafkaf appears once here")
+        result = await DocumentSearchSkill().run("kafkaf")
+        assert result.index("a.txt") < result.index("b.txt")
+
+    @pytest.mark.asyncio
+    async def test_ignores_unsupported_file_types(self):
+        await FilesSkill().run("write image.png\nkafkaf binary-ish content")
+        result = await DocumentSearchSkill().run("kafkaf")
+        assert result == "no matching content found in the workspace"
+
+    @pytest.mark.asyncio
+    async def test_no_match(self):
+        await FilesSkill().run("write notes.txt\nsomething else entirely")
+        result = await DocumentSearchSkill().run("nonexistent query xyz")
+        assert result == "no matching content found in the workspace"
+
+    @pytest.mark.asyncio
+    async def test_empty_query(self):
+        result = await DocumentSearchSkill().run("")
+        assert result.startswith("error:")
 
 
 class TestReminders:

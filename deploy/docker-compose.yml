@@ -18,7 +18,7 @@ services:
       dockerfile: deploy/Dockerfile
     environment:
       KAFKAF_OLLAMA_HOST: http://ollama:11434
-      KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen2.5:3b}
+      KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen3:4b}
       KAFKAF_DB_PATH: /data/kafkaf.db
       # Without this, the default checkpoint path is relative and lands in
       # the container's ephemeral working dir, not the mounted volume below

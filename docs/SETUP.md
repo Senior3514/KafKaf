@@ -16,9 +16,10 @@ python install.py
 
 This brings up an `ollama` container plus the KafKaf `backend` container
 (see `deploy/docker-compose.yml`), waits for Ollama to be ready, and pulls
-the default model (`qwen2.5:3b` — override by editing `DEFAULT_MODEL` in
-`install.py` or setting `KAFKAF_OLLAMA_MODEL` before starting Ollama
-manually). The backend — which also serves the web GUI — is then reachable
+the default model (`qwen3:4b` — override by setting `KAFKAF_OLLAMA_MODEL`
+before running `install.py`; see
+[Choosing your model](#choosing-your-model) below for which tag fits your
+hardware). The backend — which also serves the web GUI — is then reachable
 at `http://localhost:8420`.
 
 Linux/macOS users who prefer a shell script can use `./deploy/install.sh`
@@ -115,7 +116,8 @@ webview engine.
 
 Requires Python 3.11+ and a locally running
 [Ollama](https://ollama.com/download) (`ollama serve`, plus
-`ollama pull qwen2.5:3b` or whichever model you configure).
+`ollama pull qwen3:4b` or whichever model you configure — see
+[Choosing your model](#choosing-your-model)).
 
 ```
 pip install -e ".[dev]"
@@ -190,8 +192,8 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.local.yml -
 ```
 Tune it with env vars *before* running the above (Compose bakes them into
 the container's command at start time): `KAFKAF_AUTOPILOT_TEACHER` (default
-`ollama:qwen2.5:3b` — free, local; **comma-separate multiple specs to
-rotate through them**, e.g. `ollama:llama3,ollama:qwen2.5:3b,openai:gpt-4o-mini`
+`ollama:qwen3:4b` — free, local; **comma-separate multiple specs to
+rotate through them**, e.g. `ollama:llama3,ollama:qwen3:4b,openai:gpt-4o-mini`
 — different topics get taught by different models), `KAFKAF_AUTOPILOT_INTERVAL_SECONDS`
 (default `300`), `KAFKAF_AUTOPILOT_TRAIN_EVERY` (default `5`),
 `KAFKAF_AUTOPILOT_TRAIN_STEPS` (default `100`), and
@@ -202,7 +204,7 @@ propose new topics once the starting list runs out — see below). Watch it:
 **Standalone** (no Docker):
 ```
 pip install -e ".[train]"
-kafkaf-autopilot --teacher "ollama:qwen2.5:3b,ollama:llama3" --interval-seconds 300 --dynamic-curriculum
+kafkaf-autopilot --teacher "ollama:qwen3:4b,ollama:llama3" --interval-seconds 300 --dynamic-curriculum
 ```
 Run `kafkaf-autopilot --help` for every option, including `--topics-file`
 to teach it your own starting curriculum instead of the small built-in
@@ -253,7 +255,7 @@ answers into one — real, working "get several models to help answer this,"
 not just training. Set:
 
 ```
-KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen2.5:3b
+KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen3:4b
 ```
 
 (add `openai:gpt-4o-mini`, `anthropic:claude-3-5-haiku-latest`,
@@ -278,7 +280,7 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The ten skills that ship today, all working with no API key required:
+The eleven skills that ship today, all working with no API key required:
 
 | Skill | What it does |
 |---|---|
@@ -288,14 +290,22 @@ The ten skills that ship today, all working with no API key required:
 | `current_datetime` | The current UTC date/time |
 | `memory_search` | Search what the own model has already been taught |
 | `files` | Read/write/list files in a sandboxed workspace |
+| `document_search` | Keyword search over the *content* of files in that same workspace |
 | `reminders` | A persistent reminder list (add/list/done) |
 | `unit_convert` | Length/weight/temperature conversion |
 | `rss` | Latest items from an RSS/Atom feed |
 | `weather` | Current weather for a city (Open-Meteo, no key) |
 
-The sandboxed workspace for the `files` skill defaults to `./workspace` —
-override with `KAFKAF_SKILLS_WORKSPACE_DIR`. Paths that try to escape it
-(`../..`, absolute paths outside the workspace) are rejected.
+The sandboxed workspace for the `files` and `document_search` skills
+defaults to `./workspace` — override with `KAFKAF_SKILLS_WORKSPACE_DIR`.
+Paths that try to escape it (`../..`, absolute paths outside the workspace)
+are rejected. `document_search` is a small, dependency-free "RAG-lite":
+it chunks `.txt`/`.md`/`.rst`/`.csv`/`.json`/`.log` files by paragraph and
+ranks chunks by keyword overlap — no vector DB or embeddings model, in
+keeping with the project's minimal-dependency philosophy (the same spirit
+as `calculator`'s hand-rolled safe eval). Drop files into the workspace
+with the `files` skill's `write` command (or directly on disk), then
+search their actual content instead of just their names.
 
 **Not shipped on purpose**: raw code execution. A rushed, half-sandboxed
 exec skill is a real security hole; it'll come once it's genuinely
@@ -314,7 +324,7 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | Variable                    | Default                   | Meaning                              |
 |------------------------------|----------------------------|----------------------------------------|
 | `KAFKAF_OLLAMA_HOST`         | `http://localhost:11434`  | Ollama API base URL                    |
-| `KAFKAF_OLLAMA_MODEL`        | `qwen2.5:3b`               | Model tag to use for chat              |
+| `KAFKAF_OLLAMA_MODEL`        | `qwen3:4b`                 | Model tag to use for chat — see [Choosing your model](#choosing-your-model) |
 | `KAFKAF_DB_PATH`             | `kafkaf.db`                | SQLite path for memory + enrichment    |
 | `KAFKAF_HOST`                | `0.0.0.0`                  | Backend bind host                      |
 | `KAFKAF_PORT`                | `8420`                     | Backend bind port                      |
@@ -324,4 +334,26 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | `KAFKAF_ANTHROPIC_API_KEY`   | unset                      | Enables `anthropic:*` as a teacher     |
 | `KAFKAF_GEMINI_API_KEY`      | unset                      | Enables `gemini:*` as a teacher        |
 | `KAFKAF_COUNCIL_BRAINS`      | unset                      | Comma-separated brains for council mode |
-| `KAFKAF_SKILLS_WORKSPACE_DIR` | `workspace`               | Sandboxed directory for the `files` skill |
+| `KAFKAF_SKILLS_WORKSPACE_DIR` | `workspace`               | Sandboxed directory for the `files`/`document_search` skills |
+| `KAFKAF_RATE_LIMIT_PER_MINUTE` | `120`                    | Requests/minute per client IP before `429` (`0` disables) |
+
+## Choosing your model
+
+`KAFKAF_OLLAMA_MODEL` picks the local Ollama model KafKaf chats with and (by
+default) teaches its own model from. Three real, verified tags, picked by
+available RAM/GPU — not tuned per app, just "what fits":
+
+| Tier | Tag | Download size | Minimum RAM | When to use it |
+|---|---|---|---|---|
+| CPU-constrained fallback | `qwen2.5:3b` | 1.9GB | ~4GB | Old/weak hardware, or `qwen3:4b` is noticeably slow on your CPU |
+| **Default (recommended)** | `qwen3:4b` | 2.5GB | ~8GB | Best speed/quality balance for most self-hosted setups — this is what `install.py`/`docker-compose.yml` pull by default |
+| Upgrade tier | `qwen3:14b` | 9.3GB | ~16GB, or a GPU with 10GB+ VRAM | Meaningfully more capable; noticeably slower CPU-only |
+
+Switch it before installing/starting:
+```
+KAFKAF_OLLAMA_MODEL=qwen3:14b python install.py
+```
+`install.py` reads the same env var when deciding which model to `ollama
+pull`, so this actually changes what gets downloaded, not just what the
+backend requests. Standalone/manual dev: `ollama pull qwen3:14b` then set
+`KAFKAF_OLLAMA_MODEL` before `kafkaf-server`.

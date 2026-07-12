@@ -1,24 +1,9 @@
-from pathlib import Path
-
-from kafkaf.core.config import settings
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.sandbox import resolve_safe as _resolve_safe
+from kafkaf.core.skills.sandbox import workspace_root as _workspace_root
 
 MAX_READ_CHARS = 4000
 MAX_WRITE_CHARS = 20000
-
-
-def _workspace_root() -> Path:
-    root = Path(settings.skills_workspace_dir).resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def _resolve_safe(relative_path: str) -> Path:
-    root = _workspace_root()
-    candidate = (root / relative_path).resolve()
-    if candidate != root and root not in candidate.parents:
-        raise ValueError("path escapes the sandboxed workspace directory")
-    return candidate
 
 
 class FilesSkill(Skill):

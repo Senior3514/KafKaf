@@ -36,7 +36,10 @@ LOCAL_OVERLAY = DEPLOY_DIR / "docker-compose.local.yml"
 TAILSCALE_OVERLAY = DEPLOY_DIR / "docker-compose.tailscale.yml"
 AUTOPILOT_OVERLAY = DEPLOY_DIR / "docker-compose.autopilot.yml"
 MODE_MARKER = DEPLOY_DIR / ".compose-mode"
-DEFAULT_MODEL = "qwen2.5:3b"
+# Matches deploy/install.sh's fallback and honors the same override so
+# setting KAFKAF_OLLAMA_MODEL before running this actually pulls the model
+# the backend will request, instead of silently pulling a different one.
+DEFAULT_MODEL = os.environ.get("KAFKAF_OLLAMA_MODEL", "qwen3:4b")
 
 
 def run(*args: str) -> None:
