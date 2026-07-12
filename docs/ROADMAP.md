@@ -123,7 +123,8 @@ depends on a big-bang release — "grow it over time."
       (`kafkaf/core/enrichment/autopilot.py`) cycles a curriculum of topics
       through a teacher and trains periodically, runnable standalone or as
       its own Docker service (`deploy/docker-compose.autopilot.yml`,
-      `install.py --autopilot`) — deliberately paced, not "as fast as
+      **on by default** as of Phase 9 — `python install.py --no-autopilot`
+      for a chat-only install) — deliberately paced, not "as fast as
       possible," since an unattended loop hammering a paid API or a CPU
       flat-out is a cost/stability risk. It can **rotate through multiple
       teacher models** (`--teacher "ollama:a,ollama:b,openai:gpt-4o-mini"`
@@ -181,6 +182,26 @@ depends on a big-bang release — "grow it over time."
       below), and MCP-tool-level audit hooks (calling `teach_fact`/
       `train_step` directly from Claude Desktop, outside a chat turn, isn't
       logged today, only chat/skills/autopilot are).
+- [x] **Phase 9 — Autonomy as the default posture**: `python install.py`
+      (and `deploy/install.sh`) now run `kafkaf-autopilot` **by default** —
+      KafKaf starts learning unattended the moment it's installed, not only
+      when a `--autopilot` flag is remembered; `--no-autopilot` opts out for
+      a chat-only install. This is deliberate: "grows on its own" should be
+      what you get by default, with the emergency stop
+      (`kafkaf-autopilot-ctl stop`, Phase 6) as the safety valve that makes
+      that default responsible rather than reckless. **Considered and
+      explicitly not shipped this phase**: a `run_python` code-execution
+      skill (arbitrary Python via subprocess, timeout + memory limits, no
+      inherited secrets, workspace-confined cwd — but not a container/
+      seccomp sandbox, so no real network or absolute-path isolation beyond
+      what the Docker container itself provides). Combined with autopilot
+      now running unattended by default, giving the automated loop a path
+      to execute arbitrary code is a materially different risk than the
+      read/search/sandboxed-write skills shipped so far — flagged by this
+      project's own tooling as a new RCE surface, and declined rather than
+      rubber-stamped. Same status as before: a properly isolated version
+      (real container/seccomp isolation, not just subprocess + rlimits) is
+      a real future option, not a shortcut to take casually — see below.
 
 ## Deferred / future work
 
@@ -202,10 +223,13 @@ built yet — named here so nothing is silently dropped:
 - **MCP-client integration** — letting KafKaf's own skills call out to
   *external* MCP servers (not just exposing KafKaf's own tools via its MCP
   server), reachable from the community's broader MCP tool ecosystem.
-- **Sandboxed code execution** — already flagged in phase 3: a properly
-  isolated exec skill (subprocess + resource limits, or container
-  isolation), not the rushed, half-sandboxed version that would be a real
-  vulnerability.
+- **Sandboxed code execution** — flagged in phase 3, prototyped and
+  declined in phase 9: a subprocess-plus-resource-limits version was built
+  but not shipped, specifically because it would be reachable by the
+  now-default-on autopilot loop with no human reviewing each call. A real
+  container/seccomp-isolated version, gated so only interactive
+  human-initiated chats can reach it (never the unattended loop), is the
+  bar for shipping this — not a rushed shortcut.
 
 ## Notes on scope
 

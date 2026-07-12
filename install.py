@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """The one KafKaf install command — works the same on Linux, macOS, and Windows.
 
-    python install.py                                     # web GUI published on this host's :8420
+    python install.py                                     # web GUI on :8420, autopilot ON by default
     TS_AUTHKEY=tskey-... python install.py --tailscale     # private tailnet only, no public port
-    python install.py --autopilot                          # + unattended teach-and-train loop
+    python install.py --no-autopilot                       # chat only, no unattended growth loop
 
-Flags combine: `python install.py --tailscale --autopilot` gets you both.
+Flags combine: `python install.py --tailscale --no-autopilot` gets you both.
 
 Brings up the full backend + web GUI (Docker: Ollama + KafKaf), pulls the
 default local model, and prints next steps for the CLI and desktop app.
@@ -15,8 +15,12 @@ Requires Docker (with the Compose plugin) — https://docs.docker.com/get-docker
 over your private Tailscale network (no port published to the public
 internet at all). See docs/SETUP.md for how to get a TS_AUTHKEY.
 
---autopilot runs kafkaf-autopilot continuously, teaching and training
-KafKaf's own model unattended — see docs/GUIDE.md for pacing/cost tuning.
+Autopilot (kafkaf-autopilot, the unattended teach-and-train curriculum
+loop) runs by default — KafKaf is meant to keep learning and growing on
+its own, not just answer questions, and a real emergency stop
+(`kafkaf-autopilot-ctl stop`) is always available if you want it paused.
+Pass --no-autopilot for a chat-only install. See docs/GUIDE.md for
+pacing/cost tuning (defaults are conservative, not "as fast as possible").
 """
 
 import argparse
@@ -77,11 +81,14 @@ def main() -> None:
         help="Reachable only over your private tailnet — no public port published.",
     )
     parser.add_argument(
-        "--autopilot",
+        "--no-autopilot",
         action="store_true",
-        help="Also run the unattended teach-and-train curriculum loop.",
+        help="Chat only — skip the unattended teach-and-train curriculum loop "
+        "(it runs by default; stop/resume a running one anytime with "
+        "`kafkaf-autopilot-ctl`).",
     )
     args = parser.parse_args()
+    autopilot = not args.no_autopilot
 
     if shutil.which("docker") is None:
         print(
@@ -98,7 +105,7 @@ def main() -> None:
         )
         raise SystemExit(1)
 
-    files = compose_files(args.tailscale, args.autopilot)
+    files = compose_files(args.tailscale, autopilot)
 
     print("==> Starting KafKaf (Ollama + backend + web GUI)...")
     docker_compose(files, "up", "-d", "--build")
@@ -111,7 +118,7 @@ def main() -> None:
 
     MODE_MARKER.write_text(
         f"{'tailscale' if args.tailscale else 'local'}\n"
-        f"{'autopilot' if args.autopilot else ''}\n"
+        f"{'autopilot' if autopilot else ''}\n"
     )
 
     print()
@@ -123,8 +130,9 @@ def main() -> None:
     else:
         print("  Web GUI:    http://localhost:8420")
         print("  Health:     http://localhost:8420/health")
-    if args.autopilot:
+    if autopilot:
         print("  Autopilot:  running — `docker compose -f deploy/docker-compose.yml logs -f autopilot`")
+        print("              stop anytime: `docker compose -f deploy/docker-compose.yml exec autopilot kafkaf-autopilot-ctl stop`")
     print()
     print("Optional next steps:")
     print('  CLI:        pip install -e ".[dev]"   then   kafkaf chat "hello"')

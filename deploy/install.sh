@@ -2,18 +2,27 @@
 # Linux/macOS shell twin of ../install.py, for the default (publicly
 # published) mode. For no public exposure at all, use:
 #   TS_AUTHKEY=tskey-... python ../install.py --tailscale
+# Autopilot (unattended teach-and-train) runs by default here too — set
+# KAFKAF_NO_AUTOPILOT=1 for a chat-only install.
 set -euo pipefail
 
 MODEL="${KAFKAF_OLLAMA_MODEL:-qwen3:4b}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+FILES=(-f docker-compose.yml -f docker-compose.local.yml)
+AUTOPILOT_LABEL=""
+if [[ -z "${KAFKAF_NO_AUTOPILOT:-}" ]]; then
+  FILES+=(-f docker-compose.autopilot.yml)
+  AUTOPILOT_LABEL="autopilot"
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker is required. Install it first: https://docs.docker.com/engine/install/" >&2
   exit 1
 fi
 
-echo "==> Starting KafKaf stack (ollama + backend)..."
-(cd "$SCRIPT_DIR" && docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build)
+echo "==> Starting KafKaf stack (ollama + backend${AUTOPILOT_LABEL:+ + autopilot})..."
+(cd "$SCRIPT_DIR" && docker compose "${FILES[@]}" up -d --build)
 
 echo "==> Waiting for Ollama to be ready..."
 until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do
@@ -21,7 +30,10 @@ until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do
 done
 
 echo "==> Pulling local model: $MODEL"
-(cd "$SCRIPT_DIR" && docker compose -f docker-compose.yml -f docker-compose.local.yml exec -T ollama ollama pull "$MODEL")
+(cd "$SCRIPT_DIR" && docker compose "${FILES[@]}" exec -T ollama ollama pull "$MODEL")
 
-echo "local" > "$SCRIPT_DIR/.compose-mode"
+printf 'local\n%s\n' "$AUTOPILOT_LABEL" > "$SCRIPT_DIR/.compose-mode"
 echo "==> KafKaf is up. Backend: http://localhost:8420  (try: curl http://localhost:8420/health)"
+if [[ -n "$AUTOPILOT_LABEL" ]]; then
+  echo "==> Autopilot running — stop anytime: docker compose -f docker-compose.yml exec autopilot kafkaf-autopilot-ctl stop"
+fi

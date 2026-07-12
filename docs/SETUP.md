@@ -181,12 +181,13 @@ answer, and periodically runs a training step — the "lives on the VPS and
 keeps growing on its own" piece. It shares the same corpus/checkpoint as
 the backend and MCP server, so its progress shows up everywhere.
 
-**Via Docker** (recommended for a VPS — runs continuously as its own
-container, sharing the backend's data volume):
+**Runs by default** — `python install.py` (or `deploy/install.sh`) starts
+it automatically as its own container alongside the backend, sharing its
+data volume. Pass `--no-autopilot` for a chat-only install instead:
 ```
-python install.py --autopilot
+python install.py --no-autopilot
 ```
-or combine directly:
+or combine the overlay directly yourself:
 ```
 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.local.yml -f deploy/docker-compose.autopilot.yml up -d --build
 ```
