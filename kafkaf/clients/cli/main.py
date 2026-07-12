@@ -122,5 +122,16 @@ def audit(
         typer.echo(f"[{event['created_at']}] {event['event_type']}{actor}{duration}: {event['summary']}")
 
 
+@app.command()
+def autonomy(url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL.")) -> None:
+    """Show the current autonomy level (observe/assisted/autonomous) and what it unlocks."""
+    response = httpx.get(f"{url}/autonomy", timeout=30.0)
+    response.raise_for_status()
+    info = response.json()
+    typer.echo(f"level: {info['level']}")
+    typer.echo(f"skills allowed: {info['skills_allowed']}")
+    typer.echo(info["description"])
+
+
 if __name__ == "__main__":
     app()

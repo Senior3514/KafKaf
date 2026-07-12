@@ -202,6 +202,30 @@ depends on a big-bang release — "grow it over time."
       rubber-stamped. Same status as before: a properly isolated version
       (real container/seccomp isolation, not just subprocess + rlimits) is
       a real future option, not a shortcut to take casually — see below.
+- [x] **Phase 10 — A granular autonomy dial**: `core/autonomy.py` and
+      `KAFKAF_AUTONOMY_LEVEL` (`--autonomy` at install time) replace "one
+      binary autopilot flag" with three named, legible tiers —
+      `observe` (~0%, chat only), `assisted` (~50%, skills available, no
+      unattended loop), `autonomous` (~100%, the Phase 9 default: skills +
+      autopilot both on). Enforced where it matters, not just documented:
+      `core/api.py`'s `/chat` rejects `skills: true` at `observe` with a 400,
+      and `install.py`/`deploy/install.sh` only include the autopilot
+      container at `autonomous`. `GET /autonomy` / `kafkaf autonomy` show
+      what's active. **Code execution, attempted a second time, declined a
+      second time**: prompted to build it again with a real sandbox this
+      round (bubblewrap/kernel-namespace isolation — no network namespace,
+      read-only root, workspace-only writable — deliberately avoiding a
+      Docker-socket-mounted approach, since giving the backend container
+      access to the host Docker socket is itself a host-root-equivalent
+      escalation path, a materially worse trade than the capability it would
+      buy). Blocked again by this project's own tooling before any code was
+      even installed, on the same grounds as Phase 9: general instructions
+      to "give more autonomy/permissions" don't specifically name "let the
+      unattended autopilot loop execute code" — the one shape of request
+      this project treats as requiring an unambiguous, specific yes, not an
+      inferred one. Two independent declines on the same capability is
+      treated as a firm signal, not a threshold to route around with
+      different tooling next time.
 
 ## Deferred / future work
 
@@ -223,13 +247,18 @@ built yet — named here so nothing is silently dropped:
 - **MCP-client integration** — letting KafKaf's own skills call out to
   *external* MCP servers (not just exposing KafKaf's own tools via its MCP
   server), reachable from the community's broader MCP tool ecosystem.
-- **Sandboxed code execution** — flagged in phase 3, prototyped and
-  declined in phase 9: a subprocess-plus-resource-limits version was built
-  but not shipped, specifically because it would be reachable by the
-  now-default-on autopilot loop with no human reviewing each call. A real
-  container/seccomp-isolated version, gated so only interactive
-  human-initiated chats can reach it (never the unattended loop), is the
-  bar for shipping this — not a rushed shortcut.
+- **Sandboxed code execution** — flagged in phase 3, attempted and declined
+  twice since: phase 9's subprocess-plus-resource-limits version, and phase
+  10's bubblewrap/namespace-isolated version (blocked before it was even
+  installed). Both attempts shared the same disqualifying property —
+  reachable by the now-default-on autopilot loop with no human reviewing
+  each call. Shipping this needs two things confirmed together, explicitly,
+  not inferred from general "more autonomy" language: (1) real
+  container/kernel-namespace isolation (no network access, read-only root,
+  workspace-only writable — not just subprocess + rlimits), and (2) a gate
+  that gives the *unattended autopilot loop* no path to it at all, ever —
+  only interactive, human-initiated chat turns. Until both are true and
+  explicitly signed off, this stays out.
 
 ## Notes on scope
 

@@ -45,11 +45,19 @@ emergency stop is always one command away
 (`kafkaf-autopilot-ctl stop`) — full autonomy always ships with a fast,
 reliable off switch, never just "trust it."
 
-**Just want to chat, no unattended growth loop?** Add `--no-autopilot`:
+**How much autonomy do you want?** One dial, `--autonomy`, controls it —
+`autonomous` (default, above) has skills + autopilot both on;
+`assisted` gives you tools per chat turn but no unattended loop; `observe`
+is chat only:
 
 ```bash
-python install.py --no-autopilot
+python install.py --autonomy assisted    # skills, no autopilot
+python install.py --autonomy observe     # chat only
 ```
+
+Check what's active anytime with `kafkaf autonomy`. Full table:
+`docs/SETUP.md#autonomy-levels`. (Narrower option: `--no-autopilot` keeps
+`autonomous`'s skills on but skips only the autopilot container.)
 
 **Want it private instead of public?** Use
 [Tailscale](https://tailscale.com) as an access layer — no public port at

@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from kafkaf.core import council
+from kafkaf.core import autonomy, council
 from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
@@ -57,6 +57,13 @@ async def health() -> dict[str, str]:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
+    if request.skills and not autonomy.skills_allowed():
+        raise HTTPException(
+            status_code=400,
+            detail=f"skills are disabled at autonomy level {settings.autonomy_level!r} "
+            "(needs 'assisted' or 'autonomous' — see docs/SETUP.md#autonomy-levels).",
+        )
+
     brain = None
     if request.brain:
         try:
@@ -91,6 +98,15 @@ async def chat(request: ChatRequest) -> ChatResponse:
 @app.get("/audit")
 async def audit(limit: int = 50, event_type: str | None = None) -> list[dict]:
     return audit_store.recent_events(limit=limit, event_type=event_type)
+
+
+@app.get("/autonomy")
+async def autonomy_status() -> dict:
+    return {
+        "level": settings.autonomy_level,
+        "description": autonomy.DESCRIPTIONS[settings.autonomy_level],
+        "skills_allowed": autonomy.skills_allowed(),
+    }
 
 
 @app.get("/", include_in_schema=False)
