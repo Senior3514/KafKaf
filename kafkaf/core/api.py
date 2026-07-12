@@ -7,9 +7,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from kafkaf.core import council
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
 from kafkaf.core.memory import store
+from kafkaf.core.rate_limit import RateLimitMiddleware
 from kafkaf.core.skills import store as skills_store
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "clients" / "web" / "static"
@@ -19,10 +21,12 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "clients" / "web" / "static"
 async def lifespan(app: FastAPI):
     store.init_db()
     skills_store.init_db()
+    audit_store.init_db()
     yield
 
 
 app = FastAPI(title="KafKaf", version="0.1.0", lifespan=lifespan)
+app.add_middleware(RateLimitMiddleware)
 
 
 class ChatRequest(BaseModel):
@@ -82,6 +86,11 @@ async def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return ChatResponse(reply=reply, session_id=request.session_id)
+
+
+@app.get("/audit")
+async def audit(limit: int = 50, event_type: str | None = None) -> list[dict]:
+    return audit_store.recent_events(limit=limit, event_type=event_type)
 
 
 @app.get("/", include_in_schema=False)

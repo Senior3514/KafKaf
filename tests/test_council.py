@@ -1,6 +1,7 @@
 import pytest
 
 from kafkaf.core import council
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.base import Brain
 from kafkaf.core.memory import store as memory_store
 
@@ -64,6 +65,7 @@ async def test_council_chat_all_fail_raises(monkeypatch):
 async def test_handle_chat_council_mode(monkeypatch, tmp_path):
     monkeypatch.setattr("kafkaf.core.config.settings.db_path", str(tmp_path / "test.db"))
     memory_store.init_db()
+    audit_store.init_db()
 
     brains = {"a:1": FixedBrain("brain-a", "answer A"), "a:2": FixedBrain("brain-b", "answer B")}
     monkeypatch.setattr(council, "get_brain", lambda spec: brains[spec])

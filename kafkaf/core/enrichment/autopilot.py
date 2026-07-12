@@ -22,6 +22,7 @@ from pathlib import Path
 
 import typer
 
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
 from kafkaf.core.enrichment import service
@@ -122,12 +123,14 @@ def run_forever(
     stop_file: str = DEFAULT_STOP_FILE,
 ) -> None:
     enrichment_store.init_db()
+    audit_store.init_db()
     topics = load_topics(topics_path)
 
     cycle = 0
     while max_cycles is None or cycle < max_cycles:
         if is_stop_requested(stop_file):
             print(f"[autopilot] stop requested via {stop_file!r} — halting.")
+            audit_store.log_event("autopilot_stop", None, f"stop file {stop_file!r} seen before cycle {cycle}")
             break
 
         if dynamic_curriculum and cycle > 0 and cycle % len(topics) == 0:
@@ -140,8 +143,12 @@ def run_forever(
                         f"[autopilot] curriculum grew by {len(new_topics)} topics "
                         f"via {growth_teacher}: {new_topics}"
                     )
+                    audit_store.log_event(
+                        "autopilot_curriculum_growth", growth_teacher, f"+{len(new_topics)} topics: {new_topics}"
+                    )
             except Exception as exc:  # a bad growth call must not kill the loop
                 print(f"[autopilot] curriculum growth failed: {exc}")
+                audit_store.log_event("autopilot_error", growth_teacher, f"curriculum growth failed: {exc}")
 
         topic = next_topic(topics, cycle)
         teacher = next_teacher(teachers, cycle)
@@ -151,8 +158,12 @@ def run_forever(
                 f"[autopilot] taught {topic!r} from {result['teacher']} "
                 f"(corpus={result['corpus_size']['total']})"
             )
+            audit_store.log_event(
+                "autopilot_teach", result["teacher"], f"topic={topic!r} corpus={result['corpus_size']['total']}"
+            )
         except Exception as exc:  # a bad teacher call must not kill the loop
             print(f"[autopilot] failed to teach {topic!r}: {exc}")
+            audit_store.log_event("autopilot_error", teacher, f"failed to teach {topic!r}: {exc}")
 
         cycle += 1
         if should_train(cycle, train_every):
@@ -162,12 +173,19 @@ def run_forever(
                     f"[autopilot] trained {train_result['steps']} steps, "
                     f"loss {train_result['loss_start']:.4f} -> {train_result['loss_end']:.4f}"
                 )
+                audit_store.log_event(
+                    "autopilot_train",
+                    None,
+                    f"steps={train_result['steps']} loss {train_result['loss_start']:.4f} -> "
+                    f"{train_result['loss_end']:.4f}",
+                )
             except ValueError as exc:
                 print(f"[autopilot] training skipped: {exc}")
 
         if max_cycles is None or cycle < max_cycles:
             if _interruptible_sleep(interval_seconds, stop_file):
                 print(f"[autopilot] stop requested via {stop_file!r} — halting.")
+                audit_store.log_event("autopilot_stop", None, f"stop file {stop_file!r} seen during sleep, cycle {cycle}")
                 break
 
 

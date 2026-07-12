@@ -357,3 +357,33 @@ KAFKAF_OLLAMA_MODEL=qwen3:14b python install.py
 pull`, so this actually changes what gets downloaded, not just what the
 backend requests. Standalone/manual dev: `ollama pull qwen3:14b` then set
 `KAFKAF_OLLAMA_MODEL` before `kafkaf-server`.
+
+## Audit log: seeing what KafKaf actually did
+
+Every chat turn (including which brain answered and how long it took),
+every skill call, and every autopilot cycle is logged to a small SQLite
+table (`kafkaf/core/audit/store.py`) — full autonomy is only trustworthy if
+it's observable. Check it from any interface:
+
+```
+kafkaf audit                       # last 50 events
+kafkaf audit --event-type skill    # only skill calls
+```
+
+or directly: `GET /audit?limit=50&event_type=chat`. Event types include
+`chat`/`chat_council`/`chat_skills`, `skill`/`skill_error`, and
+`autopilot_teach`/`autopilot_train`/`autopilot_curriculum_growth`/
+`autopilot_stop`/`autopilot_error`. Not logged today: individual MCP tool
+calls made outside a chat turn (e.g. calling `teach_fact` directly from
+Claude Desktop) — a documented gap, not a silent one.
+
+## Rate limiting
+
+`KAFKAF_RATE_LIMIT_PER_MINUTE` (default `120`) caps requests per client IP
+per minute on every route except `/health` and `/static/*`, returning `429`
+once exceeded — an in-memory fixed-window limiter
+(`kafkaf/core/rate_limit.py`), no Redis or extra service required. The
+generous default assumes a single trusted user (or a small household/team
+over Tailscale); set it lower if you want stricter protection, or `0` to
+disable it entirely. This is not designed for a public multi-tenant
+deployment — see `docs/ARCHITECTURE.md`.

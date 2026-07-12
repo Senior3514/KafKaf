@@ -241,6 +241,36 @@ outside the host.
 ignored, host-local state) so `deploy/update.sh` can rebuild in the same
 mode without the flag needing to be remembered/re-passed.
 
+## Audit log
+
+`core/audit/store.py` follows the exact `_SCHEMA`/`_connect()` pattern of
+`core/memory/store.py` — a single `audit_log` table recording every chat
+turn (`council.handle_chat`), skill call (`skills/loop.py`'s
+`run_skill_loop`), and autopilot cycle (`enrichment/autopilot.py`'s
+`run_forever`), each with a duration and a short summary. `GET /audit` and
+`kafkaf audit` are thin reads over it — no client talks to sqlite directly,
+keeping the "thin client over one backend" principle from the top of this
+document intact. Full autonomy (the autopilot loop, in particular) is only
+trustworthy if what it did is visible after the fact; this is that record.
+Scope is deliberately bounded: chat/skills/autopilot are logged, but MCP
+tools called directly (e.g. `teach_fact` from Claude Desktop, outside a
+chat turn) are not — a documented gap, not a silent one.
+
+## Rate limiting
+
+`core/rate_limit.py`'s `RateLimitMiddleware` (a `starlette.middleware.base.
+BaseHTTPMiddleware`, zero new dependency since Starlette is already
+transitive via FastAPI) is an in-memory, per-client-IP, fixed-window
+limiter — no Redis, single process, matching the single-user/self-hosted
+deployment model this whole document describes. It reads
+`settings.rate_limit_per_minute` fresh on every request rather than caching
+it at construction time, so it can be reconfigured without a restart (and
+so it's monkeypatchable in tests). `/health` and `/static/*` are exempt.
+This is explicitly not a multi-tenant-safe design — see
+`docs/ROADMAP.md`'s deferred-work list for a real reverse-proxy gateway
+pattern as a future upgrade if KafKaf is ever exposed beyond a single
+trusted user/household.
+
 ## Privacy
 
 Nothing leaves the machine running KafKaf unless a persona/query explicitly

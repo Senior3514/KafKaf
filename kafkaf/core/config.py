@@ -25,8 +25,13 @@ class Settings(BaseSettings):
     # Comma-separated brain specs for council mode, e.g. "ollama:llama3,ollama:qwen3:4b".
     council_brains: str | None = None
 
-    # Sandboxed directory the "files" skill is confined to.
+    # Sandboxed directory the "files" and "document_search" skills are confined to.
     skills_workspace_dir: str = "workspace"
+
+    # Requests/minute per client IP before non-exempt routes start returning
+    # 429. Generous default — single-user platform, not a public API. 0
+    # disables rate limiting entirely.
+    rate_limit_per_minute: int = 120
 
 
 settings = Settings()

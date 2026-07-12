@@ -2,6 +2,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
+from kafkaf.core.audit import store as audit_store  # noqa: E402
 from kafkaf.core.brains.base import Brain  # noqa: E402
 from kafkaf.core.enrichment import autopilot, store  # noqa: E402
 
@@ -149,6 +150,29 @@ def test_run_forever_cycles_and_trains(monkeypatch):
     assert latest is not None
     assert latest["steps"] == 10
     assert latest["num_examples"] == 2
+
+    event_types = {e["event_type"] for e in audit_store.recent_events(limit=100)}
+    assert "autopilot_teach" in event_types
+    assert "autopilot_train" in event_types
+
+
+def test_run_forever_logs_stop_event(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", lambda spec: FakeTeacher())
+    stop_file = str(tmp_path / "autopilot.stop")
+    (tmp_path / "autopilot.stop").touch()
+
+    autopilot.run_forever(
+        teachers=["fake:whatever"],
+        topics_path=None,
+        interval_seconds=0,
+        train_every=0,
+        train_steps=10,
+        max_cycles=5,
+        stop_file=stop_file,
+    )
+
+    events = audit_store.recent_events(limit=100)
+    assert any(e["event_type"] == "autopilot_stop" for e in events)
 
 
 def test_is_stop_requested(tmp_path):

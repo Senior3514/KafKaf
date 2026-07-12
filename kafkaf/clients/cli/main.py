@@ -98,5 +98,29 @@ def repl(
         typer.echo(f"kafkaf> {reply}\n")
 
 
+@app.command()
+def audit(
+    limit: int = typer.Option(50, help="How many recent events to show."),
+    event_type: str = typer.Option(
+        None, help="Filter to one event type, e.g. 'chat', 'skill', 'autopilot_teach'."
+    ),
+    url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
+) -> None:
+    """Show recent audit log events — what KafKaf actually did, and when."""
+    params = {"limit": limit}
+    if event_type:
+        params["event_type"] = event_type
+    response = httpx.get(f"{url}/audit", params=params, timeout=30.0)
+    response.raise_for_status()
+    events = response.json()
+    if not events:
+        typer.echo("no audit events yet")
+        return
+    for event in events:
+        actor = f" ({event['actor']})" if event["actor"] else ""
+        duration = f" [{event['duration_ms']}ms]" if event["duration_ms"] is not None else ""
+        typer.echo(f"[{event['created_at']}] {event['event_type']}{actor}{duration}: {event['summary']}")
+
+
 if __name__ == "__main__":
     app()

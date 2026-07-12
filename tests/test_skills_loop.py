@@ -1,7 +1,15 @@
 import pytest
 
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.base import Brain
 from kafkaf.core.skills.loop import run_skill_loop
+
+
+@pytest.fixture(autouse=True)
+def _isolated_audit_db(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.config.settings.db_path", str(tmp_path / "test.db"))
+    audit_store.init_db()
+    yield
 
 
 class ScriptedBrain(Brain):
@@ -30,6 +38,8 @@ async def test_action_executes_and_final_answer_returned():
     assert result == "it's 4"
     # second call should have seen the observation with the real computed result
     assert "OBSERVATION: 4" in brain.seen_messages[1][-1]["content"]
+    events = audit_store.recent_events()
+    assert any(e["event_type"] == "skill" and e["actor"] == "calculator" for e in events)
 
 
 @pytest.mark.asyncio

@@ -156,6 +156,56 @@ depends on a big-bang release — "grow it over time."
       named-volume → bind-mount fix noted in the phase 6 MCP section (only
       needed if the dockerized backend and a host-run MCP server must share
       one sqlite file).
+- [x] **Phase 8 — Research-driven hardening and a knowledge-search skill**:
+      a research pass comparing KafKaf against other self-hosted AI
+      platforms (Open WebUI, LibreChat, LM Studio, Jan.ai, and others)
+      surfaced concrete, in-scope improvements, built this phase: an
+      eleventh skill, `document_search` (dependency-free "RAG-lite" —
+      paragraph chunking + keyword-overlap scoring over the same sandboxed
+      workspace the `files` skill writes to, no vector DB or embeddings
+      model); the default local model upgraded from `qwen2.5:3b` to
+      `qwen3:4b` after checking real, verified Ollama library tags and
+      independent small-model benchmarks (not guessed), with a hardware-
+      tiered "Choosing your model" guide in `docs/SETUP.md` (fallback /
+      default / GPU-upgrade tiers) and a real bug fix so `install.py`
+      actually honors `KAFKAF_OLLAMA_MODEL` when deciding what to `ollama
+      pull` (previously hardcoded, silently inconsistent with what the
+      backend would request); audit logging (`core/audit/store.py`, `GET
+      /audit`, `kafkaf audit`) recording every chat turn, skill call, and
+      autopilot cycle — full autonomy is only trustworthy if it's
+      observable after the fact; and per-client-IP rate limiting
+      (`core/rate_limit.py`, `KAFKAF_RATE_LIMIT_PER_MINUTE`, default `120`,
+      `0` disables), an in-memory fixed-window limiter, zero new
+      dependencies. Not yet done: semantic/embeddings-based search for
+      `document_search` (deliberately deferred, not silently dropped — see
+      below), and MCP-tool-level audit hooks (calling `teach_fact`/
+      `train_step` directly from Claude Desktop, outside a chat turn, isn't
+      logged today, only chat/skills/autopilot are).
+
+## Deferred / future work
+
+Surfaced by the phase 8 competitive research pass but deliberately not
+built yet — named here so nothing is silently dropped:
+
+- **Multi-user auth/RBAC** (local accounts or OAuth, per-user quotas) —
+  needed only if KafKaf is ever meant for more than one trusted
+  user/household over Tailscale; today's rate limiting and audit log are
+  single-user-shaped, not multi-tenant-safe.
+- **A dedicated mobile app or PWA** reachable over the existing Tailscale
+  mesh, rather than only a mobile-first web GUI.
+- **A real observability sidecar** (e.g. self-hosted Langfuse or
+  OpenTelemetry) for tracing/cost visibility across council-mode's
+  multi-model fan-out, beyond what the audit log's summary rows capture.
+- **A reverse-proxy gateway** (nginx/Caddy) in front of the backend for
+  TLS termination and auth, if `rate_limit.py`'s in-memory single-process
+  limiter ever stops being sufficient.
+- **MCP-client integration** — letting KafKaf's own skills call out to
+  *external* MCP servers (not just exposing KafKaf's own tools via its MCP
+  server), reachable from the community's broader MCP tool ecosystem.
+- **Sandboxed code execution** — already flagged in phase 3: a properly
+  isolated exec skill (subprocess + resource limits, or container
+  isolation), not the rushed, half-sandboxed version that would be a real
+  vulnerability.
 
 ## Notes on scope
 

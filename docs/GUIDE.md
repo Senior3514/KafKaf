@@ -176,7 +176,13 @@ GPU hardware is available (same architecture, no code changes).
 ## 5. Configuration reference
 
 Full table of `KAFKAF_*` environment variables, API keys, and Tailscale
-setup: `docs/SETUP.md`.
+setup: `docs/SETUP.md`. Two worth knowing about specifically: `kafkaf audit`
+shows exactly what KafKaf has actually done (every chat, skill call, and
+autopilot cycle, with timing) — useful for trusting what an unattended
+autopilot run did while you weren't watching; `KAFKAF_RATE_LIMIT_PER_MINUTE`
+(default `120`) caps requests per client IP, `0` to disable. See
+`docs/SETUP.md#audit-log-seeing-what-kafkaf-actually-did` and
+`docs/SETUP.md#rate-limiting`.
 
 ## 6. Troubleshooting
 

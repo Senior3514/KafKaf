@@ -126,6 +126,23 @@ def test_chat_council_mode_uses_configured_brains(monkeypatch):
     assert response.json()["reply"] == "pong"
 
 
+def test_audit_endpoint_returns_recent_events():
+    with TestClient(app) as client:
+        client.post("/chat", json={"message": "ping", "session_id": "audit-test"})
+        response = client.get("/audit")
+    assert response.status_code == 200
+    events = response.json()
+    assert any(e["event_type"] == "chat" and e["actor"] == "fake" for e in events)
+
+
+def test_audit_endpoint_filters_by_event_type():
+    with TestClient(app) as client:
+        client.post("/chat", json={"message": "ping", "session_id": "audit-test-2"})
+        response = client.get("/audit", params={"event_type": "chat_skills"})
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_chat_skills_mode_executes_tools(monkeypatch):
     class ScriptedBrain(Brain):
         name = "scripted"

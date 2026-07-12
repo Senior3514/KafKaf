@@ -8,7 +8,9 @@ beyond what they already contain — see docs/ROADMAP.md's vision section).
 """
 
 import asyncio
+import time
 
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.base import Brain
 from kafkaf.core.brains.ollama_brain import OllamaBrain
 from kafkaf.core.brains.registry import get_brain
@@ -75,16 +77,27 @@ async def handle_chat(
     # council_brains takes precedence over use_skills — combining tool-use
     # with a multi-brain fan-out in one turn is a real feature, just not
     # this one; documented in docs/ARCHITECTURE.md.
+    start = time.monotonic()
     if council_brains:
+        event_type, actor = "chat_council", ",".join(council_brains)
         synthesizer = brain or _default_brain
         reply = await council_chat(messages, council_brains, synthesizer)
     elif use_skills:
         active_brain = brain or _default_brain
+        event_type, actor = "chat_skills", active_brain.name
         reply = await run_skill_loop(active_brain, messages)
     else:
         active_brain = brain or _default_brain
+        event_type, actor = "chat", active_brain.name
         reply = await active_brain.generate(messages)
+    duration_ms = int((time.monotonic() - start) * 1000)
 
+    audit_store.log_event(
+        event_type,
+        actor,
+        f"session={session_id} msg_chars={len(message)} reply_chars={len(reply)}",
+        duration_ms,
+    )
     store.save_message(session_id, "user", message)
     store.save_message(session_id, "assistant", reply)
     return reply

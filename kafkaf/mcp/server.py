@@ -10,6 +10,7 @@ import asyncio
 from mcp.server.fastmcp import FastMCP
 
 from kafkaf.core import council
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.own_model_brain import OwnModelBrain
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.enrichment import service
@@ -109,6 +110,7 @@ def main() -> None:
     memory_store.init_db()
     enrichment_store.init_db()
     skills_store.init_db()
+    audit_store.init_db()
     app.run(transport="stdio")
 
 

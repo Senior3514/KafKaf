@@ -9,7 +9,9 @@ special-casing of the Brain interface required.
 """
 
 import re
+import time
 
+from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.base import Brain
 from kafkaf.core.skills.registry import SKILLS_BY_NAME
 
@@ -55,13 +57,23 @@ async def run_skill_loop(brain: Brain, messages: list[dict[str, str]]) -> str:
 
         skill_name, skill_arg = action_match.group(1), action_match.group(2).strip()
         skill = SKILLS_BY_NAME.get(skill_name)
+        start = time.monotonic()
         if skill is None:
             observation = f"error: unknown tool {skill_name!r}"
+            audit_store.log_event("skill_error", skill_name, observation)
         else:
             try:
                 observation = await skill.run(skill_arg)
+                duration_ms = int((time.monotonic() - start) * 1000)
+                audit_store.log_event(
+                    "skill", skill_name, f"arg={skill_arg[:100]!r} -> {observation[:100]!r}", duration_ms
+                )
             except Exception as exc:  # a broken skill must not crash the conversation
                 observation = f"error: {exc}"
+                duration_ms = int((time.monotonic() - start) * 1000)
+                audit_store.log_event(
+                    "skill_error", skill_name, f"arg={skill_arg[:100]!r} -> {exc}", duration_ms
+                )
 
         conversation.append({"role": "assistant", "content": reply})
         conversation.append({"role": "user", "content": f"OBSERVATION: {observation}"})
