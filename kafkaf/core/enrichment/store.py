@@ -71,6 +71,18 @@ def get_unused_examples(limit: int | None = None) -> list[dict]:
     ]
 
 
+def search_examples(query: str, limit: int = 5) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, topic, prompt, completion FROM corpus_examples "
+            "WHERE topic LIKE ? OR completion LIKE ? ORDER BY id DESC LIMIT ?",
+            (f"%{query}%", f"%{query}%", limit),
+        ).fetchall()
+    return [
+        {"id": row[0], "topic": row[1], "prompt": row[2], "completion": row[3]} for row in rows
+    ]
+
+
 def mark_examples_trained(example_ids: list[int], run_id: int) -> None:
     with _connect() as conn:
         conn.executemany(

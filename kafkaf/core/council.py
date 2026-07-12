@@ -14,6 +14,7 @@ from kafkaf.core.brains.ollama_brain import OllamaBrain
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.memory import store
 from kafkaf.core.personas.default import get_persona
+from kafkaf.core.skills.loop import run_skill_loop
 
 _default_brain: Brain = OllamaBrain()
 
@@ -61,6 +62,7 @@ async def handle_chat(
     persona_key: str = "default",
     brain: Brain | None = None,
     council_brains: list[str] | None = None,
+    use_skills: bool = False,
 ) -> str:
     persona = get_persona(persona_key)
     history = store.get_history(session_id)
@@ -70,9 +72,15 @@ async def handle_chat(
         {"role": "user", "content": message},
     ]
 
+    # council_brains takes precedence over use_skills — combining tool-use
+    # with a multi-brain fan-out in one turn is a real feature, just not
+    # this one; documented in docs/ARCHITECTURE.md.
     if council_brains:
         synthesizer = brain or _default_brain
         reply = await council_chat(messages, council_brains, synthesizer)
+    elif use_skills:
+        active_brain = brain or _default_brain
+        reply = await run_skill_loop(active_brain, messages)
     else:
         active_brain = brain or _default_brain
         reply = await active_brain.generate(messages)

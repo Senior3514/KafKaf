@@ -4,6 +4,7 @@ const inputEl = document.getElementById("message");
 const sendBtn = formEl.querySelector(".send-btn");
 const brainSelectEl = document.getElementById("brain-select");
 const councilToggleEl = document.getElementById("council-toggle");
+const skillsToggleEl = document.getElementById("skills-toggle");
 
 const SESSION_KEY = "kafkaf-session-id";
 let sessionId = localStorage.getItem(SESSION_KEY);
@@ -23,8 +24,16 @@ councilToggleEl.checked = localStorage.getItem(COUNCIL_KEY) === "1";
 councilToggleEl.addEventListener("change", () => {
   localStorage.setItem(COUNCIL_KEY, councilToggleEl.checked ? "1" : "0");
   brainSelectEl.disabled = councilToggleEl.checked;
+  skillsToggleEl.disabled = councilToggleEl.checked; // skills is ignored server-side when council is on
 });
 brainSelectEl.disabled = councilToggleEl.checked;
+skillsToggleEl.disabled = councilToggleEl.checked;
+
+const SKILLS_KEY = "kafkaf-skills";
+skillsToggleEl.checked = localStorage.getItem(SKILLS_KEY) === "1";
+skillsToggleEl.addEventListener("change", () => {
+  localStorage.setItem(SKILLS_KEY, skillsToggleEl.checked ? "1" : "0");
+});
 
 function addBubble(role, text) {
   const bubble = document.createElement("div");
@@ -66,6 +75,7 @@ formEl.addEventListener("submit", async (event) => {
         session_id: sessionId,
         brain: councilToggleEl.checked ? null : brainSelectEl.value || null,
         council: councilToggleEl.checked,
+        skills: !councilToggleEl.checked && skillsToggleEl.checked,
       }),
     });
     const data = await response.json();

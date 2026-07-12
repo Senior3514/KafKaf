@@ -73,8 +73,23 @@ depends on a big-bang release — "grow it over time."
       Partial failures degrade gracefully (a brain that errors is just
       excluded, not fatal — see `docs/ROADMAP.md`'s multi-agent-systems
       citation on coordination failures for why this matters as brain count
-      grows). Not yet done: a tool-use skills plugin system, multiple
-      personas.
+      grows). **Skills (tool use)**: `kafkaf/core/skills/` implements the
+      ReAct pattern (Yao et al. 2022, arXiv:2210.03629) — a text-protocol
+      tool-use loop that works uniformly across every brain, not a
+      provider-specific function-calling API. Ten real skills ship today:
+      web search, web fetch, calculator, current date/time, memory search
+      (the enrichment corpus), sandboxed file read/write, persistent
+      reminders, unit conversion, RSS feeds, and weather — all either
+      stdlib-only or free no-API-key services, so nothing needs a paid
+      account to work. Deliberately **not** included: raw code execution —
+      a rushed, half-sandboxed exec skill is a real security hole, worse
+      than not having one; a properly isolated version (subprocess +
+      resource limits, or container isolation) is a real follow-up, not a
+      shortcut. Reachable via `/chat`'s `skills: true`, `kafkaf chat
+      --skills` / `kafkaf repl --skills`, and a web GUI toggle (mutually
+      exclusive with council mode for now — see `docs/ARCHITECTURE.md`).
+      Not yet done: multiple personas, combining skills with council mode
+      in one turn.
 - [x] **Phase 4 — Web (mobile-first) + terminal**: a mobile-first web GUI
       (`kafkaf/clients/web/static/`) served directly by the backend — no
       build step, no separate deploy. `kafkaf repl` gives the CLI an

@@ -25,5 +25,8 @@ class Settings(BaseSettings):
     # Comma-separated brain specs for council mode, e.g. "ollama:llama3,ollama:qwen2.5:3b".
     council_brains: str | None = None
 
+    # Sandboxed directory the "files" skill is confined to.
+    skills_workspace_dir: str = "workspace"
+
 
 settings = Settings()

@@ -10,6 +10,7 @@ from kafkaf.core import council
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
 from kafkaf.core.memory import store
+from kafkaf.core.skills import store as skills_store
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "clients" / "web" / "static"
 
@@ -17,6 +18,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "clients" / "web" / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store.init_db()
+    skills_store.init_db()
     yield
 
 
@@ -34,6 +36,9 @@ class ChatRequest(BaseModel):
     # Fan the query out to every brain in KAFKAF_COUNCIL_BRAINS and
     # synthesize one answer, instead of a single brain replying directly.
     council: bool = False
+    # Let the brain use tools (web search, calculator, files, reminders, ...)
+    # via the ReAct loop. Ignored if council=true — see kafkaf/core/council.py.
+    skills: bool = False
 
 
 class ChatResponse(BaseModel):
@@ -71,6 +76,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
             request.persona,
             brain=brain,
             council_brains=council_brains,
+            use_skills=request.skills,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

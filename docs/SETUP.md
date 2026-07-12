@@ -246,6 +246,44 @@ If a brain in the list errors (bad key, network issue), it's just excluded
 from that round — council mode only fails if *every* configured brain
 fails. See `docs/ARCHITECTURE.md` for how the fan-out/synthesis works.
 
+## Skills: giving the brain real tools
+
+Skills mode lets a brain use tools mid-conversation instead of only
+generating text — real web search, a calculator, files, reminders, and
+more. Turn it on:
+
+- Web GUI: the "סקילים" (skills) toggle next to the model dropdown.
+- CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
+- API: `POST /chat` with `{"skills": true, ...}`.
+
+The ten skills that ship today, all working with no API key required:
+
+| Skill | What it does |
+|---|---|
+| `web_search` | Search the web (DuckDuckGo, no key) |
+| `web_fetch` | Fetch a URL's readable text |
+| `calculator` | Safe math evaluation (never `eval`/`exec`) |
+| `current_datetime` | The current UTC date/time |
+| `memory_search` | Search what the own model has already been taught |
+| `files` | Read/write/list files in a sandboxed workspace |
+| `reminders` | A persistent reminder list (add/list/done) |
+| `unit_convert` | Length/weight/temperature conversion |
+| `rss` | Latest items from an RSS/Atom feed |
+| `weather` | Current weather for a city (Open-Meteo, no key) |
+
+The sandboxed workspace for the `files` skill defaults to `./workspace` —
+override with `KAFKAF_SKILLS_WORKSPACE_DIR`. Paths that try to escape it
+(`../..`, absolute paths outside the workspace) are rejected.
+
+**Not shipped on purpose**: raw code execution. A rushed, half-sandboxed
+exec skill is a real security hole; it'll come once it's genuinely
+isolated (subprocess + resource limits, or container isolation), not
+before.
+
+Skills mode and council mode are mutually exclusive for now — if both are
+requested, council wins. See `docs/ARCHITECTURE.md` for how the underlying
+ReAct tool-use loop works.
+
 ## Configuration
 
 All settings are environment variables prefixed `KAFKAF_` (see
@@ -264,3 +302,4 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | `KAFKAF_ANTHROPIC_API_KEY`   | unset                      | Enables `anthropic:*` as a teacher     |
 | `KAFKAF_GEMINI_API_KEY`      | unset                      | Enables `gemini:*` as a teacher        |
 | `KAFKAF_COUNCIL_BRAINS`      | unset                      | Comma-separated brains for council mode |
+| `KAFKAF_SKILLS_WORKSPACE_DIR` | `workspace`               | Sandboxed directory for the `files` skill |

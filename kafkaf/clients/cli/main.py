@@ -9,7 +9,13 @@ DEFAULT_URL = "http://localhost:8420"
 
 
 def _send(
-    url: str, session_id: str, persona: str, message: str, brain: str | None, council: bool
+    url: str,
+    session_id: str,
+    persona: str,
+    message: str,
+    brain: str | None,
+    council: bool,
+    skills: bool,
 ) -> str:
     response = httpx.post(
         f"{url}/chat",
@@ -19,6 +25,7 @@ def _send(
             "persona": persona,
             "brain": brain,
             "council": council,
+            "skills": skills,
         },
         timeout=180.0,
     )
@@ -39,11 +46,14 @@ def chat(
     council: bool = typer.Option(
         False, "--council", help="Fan out to every KAFKAF_COUNCIL_BRAINS brain and synthesize one answer."
     ),
+    skills: bool = typer.Option(
+        False, "--skills", help="Let the brain use tools (web search, calculator, files, ...). Ignored with --council."
+    ),
     url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
 ) -> None:
     """Send a single message to KafKaf and print the reply."""
     session_id = session or str(uuid.uuid4())
-    typer.echo(_send(url, session_id, persona, message, brain, council))
+    typer.echo(_send(url, session_id, persona, message, brain, council, skills))
 
 
 @app.command()
@@ -56,11 +66,16 @@ def repl(
     council: bool = typer.Option(
         False, "--council", help="Fan out to every KAFKAF_COUNCIL_BRAINS brain and synthesize one answer."
     ),
+    skills: bool = typer.Option(
+        False, "--skills", help="Let the brain use tools (web search, calculator, files, ...). Ignored with --council."
+    ),
     url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
 ) -> None:
     """Start an interactive terminal chat session. Type 'exit' or Ctrl+C/Ctrl+D to leave."""
     session_id = session or str(uuid.uuid4())
     label = "council" if council else (brain or persona)
+    if skills and not council:
+        label += "+skills"
     typer.echo(f"KafKaf ({label}) — session {session_id}. Type 'exit' to leave.\n")
 
     while True:
@@ -75,7 +90,7 @@ def repl(
             break
 
         try:
-            reply = _send(url, session_id, persona, message, brain, council)
+            reply = _send(url, session_id, persona, message, brain, council, skills)
         except httpx.HTTPError as exc:
             typer.echo(f"error: {exc}")
             continue

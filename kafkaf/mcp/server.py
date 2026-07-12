@@ -15,6 +15,7 @@ from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.enrichment import service
 from kafkaf.core.enrichment import store as enrichment_store
 from kafkaf.core.memory import store as memory_store
+from kafkaf.core.skills import store as skills_store
 
 app = FastMCP("kafkaf-enrichment")
 
@@ -107,6 +108,7 @@ async def chat_with_own_model(message: str, session_id: str = "mcp-own-model") -
 def main() -> None:
     memory_store.init_db()
     enrichment_store.init_db()
+    skills_store.init_db()
     app.run(transport="stdio")
 
 

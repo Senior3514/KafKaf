@@ -124,3 +124,26 @@ def test_chat_council_mode_uses_configured_brains(monkeypatch):
     assert response.status_code == 200
     # synthesized by the fixture's default brain (FakeBrain -> always "pong")
     assert response.json()["reply"] == "pong"
+
+
+def test_chat_skills_mode_executes_tools(monkeypatch):
+    class ScriptedBrain(Brain):
+        name = "scripted"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            self.calls += 1
+            if self.calls == 1:
+                return "ACTION: calculator: 6 * 7"
+            return "FINAL ANSWER: the answer is 42"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "what is 6*7?", "session_id": "s7", "skills": True}
+        )
+    assert response.status_code == 200
+    assert response.json()["reply"] == "the answer is 42"

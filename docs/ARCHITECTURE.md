@@ -15,7 +15,11 @@ kafkaf/
     enrichment/   # the training corpus + teach/distill/train orchestration
       autopilot.py  # unattended curriculum loop (`kafkaf-autopilot`)
       topics.py      # default + custom curriculum for autopilot
-    db.py         # shared sqlite connection helper (memory + enrichment)
+    skills/       # tool use: a brain-agnostic ReAct loop + 10 real skills
+      loop.py       # the ReAct protocol (see "Skills" section below)
+      registry.py    # ALL_SKILLS / SKILLS_BY_NAME
+      store.py        # persistence for the reminders skill
+    db.py         # shared sqlite connection helper (memory + enrichment + skills)
     api.py        # FastAPI app: /health, /chat, / (web GUI), /static
     server.py     # uvicorn entrypoint (`kafkaf-server`)
   clients/
@@ -93,6 +97,43 @@ Configured via `KAFKAF_COUNCIL_BRAINS` (comma-separated specs, e.g.
 `council: true`, `kafkaf chat --council` / `kafkaf repl --council`, or the
 web GUI's council toggle (which disables the brain dropdown — council mode
 picks its own brains from config, not a single override).
+
+## Skills (tool use)
+
+`core/skills/loop.py` implements ReAct (Yao et al. 2022, "ReAct:
+Synergizing Reasoning and Acting in Language Models," arXiv:2210.03629): a
+**text-protocol** tool-use loop, not a provider-specific function-calling
+API. A brain is told (via a system-prompt preamble) it can respond with
+`ACTION: <tool>: <argument>`; the loop executes that skill, feeds the
+result back as `OBSERVATION: ...`, and repeats (capped at
+`MAX_ITERATIONS`) until the brain responds with `FINAL ANSWER: ...`. This
+is deliberately brain-agnostic — every `Brain.generate()` only ever
+sees/returns plain text, so skills work the same way across Ollama, every
+API brain, and eventually the small owned model, without touching the
+`Brain` interface per provider.
+
+`core/skills/registry.py` (`ALL_SKILLS`/`SKILLS_BY_NAME`) lists the ten
+shipped skills — `web_search` (DuckDuckGo HTML, no key), `web_fetch`,
+`calculator` (safe `ast`-based evaluator, never `eval`/`exec`),
+`current_datetime`, `memory_search` (queries the enrichment corpus),
+`files` (read/write/list confined to `KAFKAF_SKILLS_WORKSPACE_DIR`, with
+path-traversal rejected), `reminders` (persistent, its own sqlite table
+via `core/skills/store.py`), `unit_convert`, `rss`, and `weather`
+(Open-Meteo, no key). Each `Skill.run()` takes and returns plain text —
+one argument, not multi-field JSON — since small local models format that
+far more reliably than structured calls.
+
+Wired into `council.handle_chat()` as `use_skills: bool`, mutually
+exclusive with council mode for this slice (council mode takes precedence
+if both are requested — combining tool-use *within* a multi-brain fan-out
+is a real feature, just not this one yet). Reachable via `/chat`'s
+`skills: true`, `kafkaf chat --skills` / `kafkaf repl --skills`, and a web
+GUI toggle.
+
+**Deliberately not shipped**: raw code execution. A hastily-sandboxed exec
+skill is a real vulnerability, not a convenience — a properly isolated
+version (subprocess with resource limits, or container isolation) is a
+real follow-up, not something to rush.
 
 ## Memory
 

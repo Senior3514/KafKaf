@@ -68,10 +68,10 @@ growing model are shared across all of them.
 
 | Interface | How |
 |---|---|
-| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or flip the council toggle to ask several models at once (see below). |
-| **CLI** | `pip install -e .` then `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to talk to your own model, or `--council` to fan out to every `KAFKAF_COUNCIL_BRAINS` brain. |
+| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or the council/skills toggles for the modes below. |
+| **CLI** | `pip install -e .` then `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to talk to your own model, `--council` to fan out to every `KAFKAF_COUNCIL_BRAINS` brain, or `--skills` to let it use tools. |
 | **Desktop app** | `pip install -e ".[desktop]"` then `kafkaf-desktop` — a native window, same GUI. Or download a pre-built executable from the "Build desktop app" GitHub Actions workflow. |
-| **API** | `POST /chat` with `{"message": "...", "brain": "own"}` or `{"council": true}` — see `docs/ARCHITECTURE.md`. |
+| **API** | `POST /chat` with `{"message": "...", "brain": "own"}`, `{"council": true}`, or `{"skills": true}` — see `docs/ARCHITECTURE.md`. |
 | **MCP** (Claude Desktop/Code) | `pip install -e ".[mcp,train]"` then `kafkaf-mcp`, wired into `claude_desktop_config.json` — see `docs/SETUP.md`. This is also how you manually teach/train (below), not just chat. |
 
 **Council mode** — instead of one model answering, set
@@ -79,6 +79,17 @@ growing model are shared across all of them.
 you have keys) and every configured brain answers your question in
 parallel; one gets synthesized into a final reply. Real, working
 "get several models to help," not training — see `docs/SETUP.md`.
+
+**Skills mode** — flip the skills toggle (or `--skills` / `{"skills": true}`)
+and the brain can actually *use tools* mid-conversation instead of only
+talking: real web search, a calculator, reading/writing sandboxed files,
+persistent reminders, unit conversion, RSS feeds, weather, and searching
+what your own model has already been taught — ten skills, all working with
+no API key required. This is the ReAct pattern (ask a model to act, not
+just answer), and it works the same way regardless of which brain is
+answering. Mutually exclusive with council mode for now. See
+`docs/SETUP.md` for the full list and `docs/ARCHITECTURE.md` for how it
+works under the hood.
 
 ## 3. Keep it updated from the repo
 
