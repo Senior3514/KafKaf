@@ -37,11 +37,24 @@ python install.py
 ```
 
 That's it — Ollama and the KafKaf backend come up, the default model gets
-pulled, and the web GUI is live at `http://<your-vps-ip>:8420`.
+pulled, and the web GUI is live at `http://<your-vps-ip>:8420`. **Autopilot
+runs by default** — `kafkaf-autopilot` starts as a background container
+that continuously teaches and trains your own model, unattended, the
+moment you install — see [§4](#4-growing-your-own-model) below. A real
+emergency stop is always one command away
+(`kafkaf-autopilot-ctl stop`) — full autonomy always ships with a fast,
+reliable off switch, never just "trust it."
+
+**Just want to chat, no unattended growth loop?** Add `--no-autopilot`:
+
+```bash
+python install.py --no-autopilot
+```
 
 **Want it private instead of public?** Use
 [Tailscale](https://tailscale.com) as an access layer — no public port at
-all, reachable only from your own devices:
+all, reachable only from your own devices (combines with `--no-autopilot`
+if you want both):
 
 ```bash
 TS_AUTHKEY=tskey-... python install.py --tailscale
@@ -49,17 +62,6 @@ TS_AUTHKEY=tskey-... python install.py --tailscale
 
 (Get a key: Tailscale admin console → Settings → Keys → Generate auth key,
 reusable + tagged. Full details in `docs/SETUP.md#tailscale-access-layer`.)
-
-**Want it to grow on its own?** Add `--autopilot` (works with or without
-`--tailscale`):
-
-```bash
-python install.py --autopilot
-```
-
-This starts `kafkaf-autopilot` as a background container that continuously
-teaches and trains your own model, unattended — see [§4](#4-growing-your-own-model)
-below.
 
 ## 2. Talk to it — every interface
 
@@ -120,7 +122,7 @@ Connect `kafkaf-mcp` to Claude Desktop/Code (see `docs/SETUP.md`) and use:
 
 ### Automatically, via autopilot
 
-`kafkaf-autopilot` (started with `--autopilot` above, or run standalone —
+`kafkaf-autopilot` (running by default since step 1, or run standalone —
 see `docs/SETUP.md`) cycles through a curriculum of topics, asks a teacher
 to explain each one, and periodically runs a training step — unattended,
 indefinitely. Defaults are **deliberately conservative**, not "as fast as
@@ -133,7 +135,7 @@ KAFKAF_AUTOPILOT_TEACHER=ollama:qwen3:4b \
 KAFKAF_AUTOPILOT_INTERVAL_SECONDS=300 \
 KAFKAF_AUTOPILOT_TRAIN_EVERY=5 \
 KAFKAF_AUTOPILOT_TRAIN_STEPS=100 \
-python install.py --autopilot
+python install.py
 ```
 
 **Many teachers, not just one** — comma-separate several specs and

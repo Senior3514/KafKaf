@@ -78,8 +78,11 @@ TS_AUTHKEY=tskey-... python install.py --tailscale
 
 See `docs/SETUP.md#tailscale-access-layer` for how to get a key.
 
-Want it to grow on its own, unattended? Add `--autopilot` (combines with
-`--tailscale`) — see `docs/GUIDE.md#4-growing-your-own-model`.
+Autopilot (unattended teach-and-train) runs **by default** — KafKaf keeps
+learning on its own out of the box, with a real emergency stop always
+available (`kafkaf-autopilot-ctl stop`). Chat-only install? Add
+`--no-autopilot` (combines with `--tailscale`) — see
+`docs/GUIDE.md#4-growing-your-own-model`.
 
 ## Development
 
