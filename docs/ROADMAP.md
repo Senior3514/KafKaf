@@ -21,6 +21,41 @@ is. What it actually is — a growing, private, personal AI you fully
 own — is a real and worthwhile thing to build, and it's what every phase
 below is aimed at.
 
+**This isn't asserted — it's checked against the literature.** Three
+independent research passes (2026-07-12) converged on the same conclusion:
+
+- *Scale.* Capability is a joint power-law function of parameters, data,
+  and compute (Kaplan et al. 2020, arXiv:2001.08361; Hoffmann et al. 2022
+  "Chinchilla," arXiv:2203.15556) — there's no training-time trick that
+  substitutes for missing parameter count. Frontier training compute has
+  grown ~4-5x/year and GPT-4-class runs use on the order of 2×10²⁵ FLOP
+  (Epoch AI); a consumer GPU running flat-out for a full year reaches
+  roughly 2.6×10²¹ FLOP — a gap of about four orders of magnitude, i.e.
+  ~10,000x, that no amount of wall-clock time closes.
+- *Continual learning.* Sequential training tends to overwrite prior
+  knowledge (McCloskey & Cohen 1989's catastrophic interference; mitigated
+  but not solved by Kirkpatrick et al. 2017's EWC, PNAS 114(13):3521-26).
+  Distillation transfers what a teacher already knows, not new capability
+  beyond it, and degrades further once the student/teacher capacity gap is
+  too large (Hinton et al. 2015, arXiv:1503.02531; Mirzadeh et al. 2020,
+  AAAI). A small model's ceiling is representational capacity, not elapsed
+  training time.
+- *Timelines and multi-agent systems.* The largest expert poll (Grace et
+  al. 2024, arXiv:2401.02843, ~2,778 AI researchers) put the median
+  estimate for human-level AI at 2047 with an enormous spread between
+  respondents — genuine, unresolved uncertainty, not a roadmap. Frontier
+  labs are explicit about this too (Anthropic's "Core Views on AI Safety"
+  states difficulty "could lie anywhere on the spectrum from very easy to
+  impossible"). Multi-agent orchestration (e.g. Wang et al. 2024
+  "Mixture-of-Agents," arXiv:2406.04692) is documented as combining
+  existing model capabilities — real, measurable, bounded gains — not a
+  mechanism for producing new general intelligence beyond what the
+  underlying models contain; coordination failures dominate as agent count
+  grows (arXiv:2605.14892).
+
+Full citation list and a readable summary: see the research memo linked
+from PR #1, or ask for it to be regenerated.
+
 KafKaf is built in phases; each one ships something runnable. No phase
 depends on a big-bang release — "grow it over time."
 
