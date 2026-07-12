@@ -27,6 +27,12 @@ services:
       AUTOPILOT_TRAIN_EVERY: ${KAFKAF_AUTOPILOT_TRAIN_EVERY:-5}
       AUTOPILOT_TRAIN_STEPS: ${KAFKAF_AUTOPILOT_TRAIN_STEPS:-100}
       AUTOPILOT_DYNAMIC_CURRICULUM: ${KAFKAF_AUTOPILOT_DYNAMIC_CURRICULUM:-}
+      # On the shared /data volume — persists across restarts (a stop stays
+      # stopped until explicitly resumed) and is reachable via `docker
+      # compose exec autopilot kafkaf-autopilot-ctl stop` for a real
+      # emergency stop, without needing to touch the container's own
+      # ephemeral filesystem.
+      AUTOPILOT_STOP_FILE: /data/autopilot.stop
     volumes:
       - backend-data:/data
     depends_on:
@@ -45,4 +51,5 @@ services:
         --interval-seconds "$$AUTOPILOT_INTERVAL_SECONDS"
         --train-every "$$AUTOPILOT_TRAIN_EVERY"
         --train-steps "$$AUTOPILOT_TRAIN_STEPS"
+        --stop-file "$$AUTOPILOT_STOP_FILE"
         $${AUTOPILOT_DYNAMIC_CURRICULUM:+--dynamic-curriculum}

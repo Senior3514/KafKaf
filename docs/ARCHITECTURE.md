@@ -177,6 +177,14 @@ standalone or as its own Docker service
 (`deploy/docker-compose.autopilot.yml`) sharing the backend's data volume.
 Pacing defaults are conservative on purpose — see `docs/SETUP.md`.
 
+A separate `kafkaf-autopilot-ctl` Typer app (`stop`/`resume`/`status`) is
+the real emergency stop: `run_forever` checks a stop-file every
+`STOP_POLL_SECONDS` (5s) via `_interruptible_sleep` — including mid-sleep
+between cycles, not just once per topic — so a stop takes effect almost
+immediately rather than after a full interval. `kafkaf-autopilot` itself
+refuses to start while a stop file is present, so a real stop stays
+stopped until explicitly resumed.
+
 `core/api.py`'s `/chat` accepts an optional `brain` field (e.g. `"own"` or
 `"ollama:llama3"`), resolved through the same registry, so any client (web
 GUI's model dropdown, `kafkaf chat --brain own`) can talk to a specific

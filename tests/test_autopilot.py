@@ -151,6 +151,60 @@ def test_run_forever_cycles_and_trains(monkeypatch):
     assert latest["num_examples"] == 2
 
 
+def test_is_stop_requested(tmp_path):
+    stop_file = str(tmp_path / "autopilot.stop")
+    assert autopilot.is_stop_requested(stop_file) is False
+    (tmp_path / "autopilot.stop").touch()
+    assert autopilot.is_stop_requested(stop_file) is True
+
+
+def test_interruptible_sleep_returns_immediately_without_stop(tmp_path):
+    stop_file = str(tmp_path / "autopilot.stop")
+    assert autopilot._interruptible_sleep(0, stop_file) is False
+
+
+def test_interruptible_sleep_stops_early(tmp_path):
+    stop_file = str(tmp_path / "autopilot.stop")
+    (tmp_path / "autopilot.stop").touch()
+    # would normally sleep 300s — must return almost immediately once stopped
+    assert autopilot._interruptible_sleep(300, stop_file) is True
+
+
+def test_run_forever_halts_immediately_if_already_stopped(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", lambda spec: FakeTeacher())
+    stop_file = str(tmp_path / "autopilot.stop")
+    (tmp_path / "autopilot.stop").touch()
+
+    autopilot.run_forever(
+        teachers=["fake:whatever"],
+        topics_path=None,
+        interval_seconds=0,
+        train_every=0,
+        train_steps=10,
+        max_cycles=5,
+        stop_file=stop_file,
+    )
+
+    # nothing should have been taught — the stop was seen before the first cycle
+    assert store.count_examples()["total"] == 0
+
+
+def test_ctl_stop_resume_status(tmp_path, capsys):
+    stop_file = str(tmp_path / "autopilot.stop")
+
+    autopilot.status(stop_file=stop_file)
+    assert "not stopped" in capsys.readouterr().out
+
+    autopilot.stop(stop_file=stop_file)
+    assert autopilot.is_stop_requested(stop_file) is True
+
+    autopilot.status(stop_file=stop_file)
+    assert "STOPPED" in capsys.readouterr().out
+
+    autopilot.resume(stop_file=stop_file)
+    assert autopilot.is_stop_requested(stop_file) is False
+
+
 def test_run_forever_dynamic_curriculum_grows(monkeypatch, tmp_path):
     topics_file = tmp_path / "topics.txt"
     topics_file.write_text("topic a\ntopic b\n")

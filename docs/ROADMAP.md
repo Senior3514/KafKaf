@@ -133,10 +133,14 @@ depends on a big-bang release — "grow it over time."
       non-duplicate topics and keeps growing — real autonomous curriculum
       expansion, honestly attributed to the teacher model (a capable
       brain), not the small owned model directing its own training, which
-      would be far too weak to do anything coherent there. Not yet done:
-      wiring `OwnModelBrain` into the council's default *routing* (it's
-      reachable today via explicit override, just not chosen
-      automatically), and a subword tokenizer upgrade.
+      would be far too weak to do anything coherent there. **Emergency
+      stop**: a separate `kafkaf-autopilot-ctl` command (`stop`/`resume`/
+      `status`) halts a running autopilot within seconds via a polled
+      stop-file, not just at the end of a cycle — full autonomy always
+      includes a real, fast off switch. Not yet done: wiring
+      `OwnModelBrain` into the council's default *routing* (it's reachable
+      today via explicit override, just not chosen automatically), and a
+      subword tokenizer upgrade.
 - [x] **Phase 7 — Deployment automation + access layer**: `install.py` at
       the repo root is the one cross-platform install command (Linux/macOS/
       Windows, since it's Python rather than a shell script); `deploy/

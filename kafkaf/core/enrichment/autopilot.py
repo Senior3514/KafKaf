@@ -10,10 +10,15 @@ be far too weak to do anything useful there).
 Deliberately paced, not "as fast as possible": an unattended loop hitting a
 paid API or the CPU flat-out is a cost/stability risk, not a feature. Tune
 the pacing options up once you trust the impact on your bill/hardware.
+
+Full autonomy also means a real emergency stop: `kafkaf-autopilot-ctl stop`
+touches a file the loop checks every few seconds (including mid-sleep, not
+just once per cycle) and halts within that window — see ctl_app below.
 """
 
 import asyncio
 import time
+from pathlib import Path
 
 import typer
 
@@ -24,11 +29,14 @@ from kafkaf.core.enrichment import store as enrichment_store
 from kafkaf.core.enrichment.topics import load_topics
 
 app = typer.Typer(help="Run KafKaf's autonomous teach-and-train curriculum loop.")
+ctl_app = typer.Typer(help="Control a running kafkaf-autopilot process (emergency stop / resume).")
 
 DEFAULT_INTERVAL_SECONDS = 300
 DEFAULT_TRAIN_EVERY = 5
 DEFAULT_TRAIN_STEPS = 100
 DEFAULT_TOPICS_PER_GROWTH = 5
+DEFAULT_STOP_FILE = "autopilot.stop"
+STOP_POLL_SECONDS = 5
 
 
 def default_teachers() -> list[str]:
@@ -49,6 +57,23 @@ def next_teacher(teachers: list[str], cycle: int) -> str:
 
 def should_train(cycle: int, train_every: int) -> bool:
     return train_every > 0 and cycle % train_every == 0
+
+
+def is_stop_requested(stop_file: str) -> bool:
+    return Path(stop_file).exists()
+
+
+def _interruptible_sleep(seconds: int, stop_file: str) -> bool:
+    """Sleep in small increments, checking for a stop request. Returns True
+    if a stop was seen (and the caller should halt instead of continuing)."""
+    elapsed = 0
+    while elapsed < seconds:
+        if is_stop_requested(stop_file):
+            return True
+        step = min(STOP_POLL_SECONDS, seconds - elapsed)
+        time.sleep(step)
+        elapsed += step
+    return False
 
 
 async def teach_one(topic: str, teacher_spec: str) -> dict:
@@ -94,12 +119,17 @@ def run_forever(
     max_cycles: int | None,
     dynamic_curriculum: bool = False,
     topics_per_growth: int = DEFAULT_TOPICS_PER_GROWTH,
+    stop_file: str = DEFAULT_STOP_FILE,
 ) -> None:
     enrichment_store.init_db()
     topics = load_topics(topics_path)
 
     cycle = 0
     while max_cycles is None or cycle < max_cycles:
+        if is_stop_requested(stop_file):
+            print(f"[autopilot] stop requested via {stop_file!r} — halting.")
+            break
+
         if dynamic_curriculum and cycle > 0 and cycle % len(topics) == 0:
             growth_teacher = next_teacher(teachers, cycle)
             try:
@@ -136,7 +166,9 @@ def run_forever(
                 print(f"[autopilot] training skipped: {exc}")
 
         if max_cycles is None or cycle < max_cycles:
-            time.sleep(interval_seconds)
+            if _interruptible_sleep(interval_seconds, stop_file):
+                print(f"[autopilot] stop requested via {stop_file!r} — halting.")
+                break
 
 
 @app.command()
@@ -159,8 +191,21 @@ def autopilot(
     topics_per_growth: int = typer.Option(
         DEFAULT_TOPICS_PER_GROWTH, help="How many new topics to request per curriculum growth round."
     ),
+    stop_file: str = typer.Option(
+        DEFAULT_STOP_FILE,
+        help="Emergency-stop file — checked every few seconds; touch it (or run "
+        "`kafkaf-autopilot-ctl stop`) to halt gracefully.",
+    ),
 ) -> None:
     """Continuously teach-and-train KafKaf's own model, unattended."""
+    if is_stop_requested(stop_file):
+        typer.echo(
+            f"error: stop file {stop_file!r} already exists — run "
+            f"`kafkaf-autopilot-ctl resume` first if you want to start.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     teachers = parse_teachers(teacher) if teacher else default_teachers()
     run_forever(
         teachers,
@@ -171,7 +216,34 @@ def autopilot(
         max_cycles,
         dynamic_curriculum,
         topics_per_growth,
+        stop_file,
     )
+
+
+@ctl_app.command()
+def stop(
+    stop_file: str = typer.Option(DEFAULT_STOP_FILE, help="Must match the running autopilot's --stop-file."),
+) -> None:
+    """Emergency stop — a running autopilot halts within a few seconds, gracefully."""
+    Path(stop_file).touch()
+    typer.echo(f"Stop requested via {stop_file!r}. A running autopilot will halt shortly.")
+
+
+@ctl_app.command()
+def resume(
+    stop_file: str = typer.Option(DEFAULT_STOP_FILE, help="Must match the running autopilot's --stop-file."),
+) -> None:
+    """Clear the stop request so autopilot can be started again."""
+    Path(stop_file).unlink(missing_ok=True)
+    typer.echo("Stop cleared — autopilot can be started again.")
+
+
+@ctl_app.command()
+def status(
+    stop_file: str = typer.Option(DEFAULT_STOP_FILE, help="Must match the running autopilot's --stop-file."),
+) -> None:
+    """Check whether a stop is currently requested."""
+    typer.echo("STOPPED (stop file present)" if is_stop_requested(stop_file) else "not stopped")
 
 
 if __name__ == "__main__":

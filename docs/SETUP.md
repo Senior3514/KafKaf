@@ -208,6 +208,28 @@ Run `kafkaf-autopilot --help` for every option, including `--topics-file`
 to teach it your own starting curriculum instead of the small built-in
 default (`kafkaf/core/enrichment/topics.py`).
 
+**Emergency stop**: full autonomy includes a real off switch. Autopilot
+checks for a stop request every few seconds — including mid-sleep between
+cycles, not just once per topic — so a stop takes effect almost
+immediately, not after waiting out a full interval. Control a running
+instance with the separate `kafkaf-autopilot-ctl` command:
+
+```
+kafkaf-autopilot-ctl stop      # halts a running autopilot within ~5s
+kafkaf-autopilot-ctl status    # check whether a stop is currently requested
+kafkaf-autopilot-ctl resume    # clear the stop so autopilot can start again
+```
+
+Both commands and `kafkaf-autopilot` itself operate on a shared stop-file
+(`--stop-file`, default `autopilot.stop`) — `kafkaf-autopilot` refuses to
+start while a stop is in effect, so `resume` first if you want to restart
+after a real stop. **Via Docker**, the stop file lives on the shared
+`/data` volume (`AUTOPILOT_STOP_FILE=/data/autopilot.stop`), so it survives
+container restarts and is reachable from the host:
+```
+docker compose -f deploy/docker-compose.yml exec autopilot kafkaf-autopilot-ctl stop
+```
+
 **Dynamic curriculum**: with `--dynamic-curriculum`, once the starting
 topic list is exhausted, autopilot asks the *current teacher* (a real,
 capable model) to propose new topics that haven't been covered yet, and

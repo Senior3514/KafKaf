@@ -155,6 +155,15 @@ Customize the *starting* curriculum by pointing `topics_file` at your own
 newline-separated list (one topic per line, `#` for comments) instead of
 the small built-in default — see `kafkaf/core/enrichment/topics.py`.
 
+**Emergency stop** — full autonomy means a real off switch. Run
+`kafkaf-autopilot-ctl stop` (prefix with
+`docker compose -f deploy/docker-compose.yml exec autopilot` if it's
+running in Docker) and the loop halts within a few seconds — it checks for
+a stop request continuously, not just between cycles. `kafkaf-autopilot-ctl
+status` shows whether a stop is in effect; `kafkaf-autopilot-ctl resume`
+clears it so autopilot can be started again. See `docs/SETUP.md` for the
+full command reference.
+
 ### Calibrating expectations as it grows
 
 Loss going down in `status()`/autopilot logs is proof the pipeline works.
