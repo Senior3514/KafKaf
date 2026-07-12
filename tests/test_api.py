@@ -94,3 +94,33 @@ def test_chat_unknown_provider_returns_400():
             "/chat", json={"message": "hi", "session_id": "s4", "brain": "bogus:model"}
         )
     assert response.status_code == 400
+
+
+def test_chat_council_without_config_returns_400():
+    with TestClient(app) as client:
+        response = client.post("/chat", json={"message": "hi", "session_id": "s5", "council": True})
+    assert response.status_code == 400
+
+
+def test_chat_council_mode_uses_configured_brains(monkeypatch):
+    class BrainA(Brain):
+        name = "brain-a"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "answer A"
+
+    class BrainB(Brain):
+        name = "brain-b"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "answer B"
+
+    brains = {"ollama:a": BrainA(), "ollama:b": BrainB()}
+    monkeypatch.setattr("kafkaf.core.config.settings.council_brains", "ollama:a,ollama:b")
+    monkeypatch.setattr("kafkaf.core.council.get_brain", lambda spec: brains[spec])
+
+    with TestClient(app) as client:
+        response = client.post("/chat", json={"message": "hi", "session_id": "s6", "council": True})
+    assert response.status_code == 200
+    # synthesized by the fixture's default brain (FakeBrain -> always "pong")
+    assert response.json()["reply"] == "pong"

@@ -13,6 +13,18 @@ class FakeTeacher(Brain):
         return f"fact about {messages[0]['content']}"
 
 
+class SmartFakeTeacher(Brain):
+    """Distinguishes a curriculum-growth prompt from a normal teach prompt."""
+
+    name = "smart-fake-teacher"
+
+    async def generate(self, messages: list[dict[str, str]]) -> str:
+        content = messages[0]["content"]
+        if content.startswith("Suggest"):
+            return "new topic one\nnew topic two\nnew topic three"
+        return f"fact about {content}"
+
+
 @pytest.fixture(autouse=True)
 def _isolated_storage(monkeypatch, tmp_path):
     monkeypatch.setattr("kafkaf.core.config.settings.db_path", str(tmp_path / "test.db"))
@@ -26,6 +38,24 @@ def _isolated_storage(monkeypatch, tmp_path):
 def test_next_topic_cycles():
     topics = ["a", "b", "c"]
     assert [autopilot.next_topic(topics, i) for i in range(5)] == ["a", "b", "c", "a", "b"]
+
+
+def test_next_teacher_cycles():
+    teachers = ["ollama:a", "ollama:b"]
+    assert [autopilot.next_teacher(teachers, i) for i in range(4)] == [
+        "ollama:a",
+        "ollama:b",
+        "ollama:a",
+        "ollama:b",
+    ]
+
+
+def test_parse_teachers():
+    assert autopilot.parse_teachers("ollama:a, ollama:b ,openai:gpt-4o-mini") == [
+        "ollama:a",
+        "ollama:b",
+        "openai:gpt-4o-mini",
+    ]
 
 
 def test_should_train():
@@ -57,11 +87,53 @@ async def test_teach_one_rejects_own_as_teacher():
         await autopilot.teach_one("some topic", "own")
 
 
+@pytest.mark.asyncio
+async def test_propose_topics_dedups_against_existing(monkeypatch):
+    class ProposingTeacher(Brain):
+        name = "proposer"
+
+        async def generate(self, messages):
+            return "existing topic\nNew Topic\nanother new one\n"
+
+    monkeypatch.setattr(
+        "kafkaf.core.enrichment.autopilot.get_brain", lambda spec: ProposingTeacher()
+    )
+    fresh = await autopilot.propose_topics("ollama:llama3", ["existing topic"], count=5)
+    assert fresh == ["New Topic", "another new one"]
+
+
+@pytest.mark.asyncio
+async def test_propose_topics_rejects_own_as_teacher():
+    with pytest.raises(ValueError):
+        await autopilot.propose_topics("own", [])
+
+
+def test_run_forever_rotates_teachers(monkeypatch):
+    seen_specs = []
+
+    def fake_get_brain(spec):
+        seen_specs.append(spec)
+        return FakeTeacher()
+
+    monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", fake_get_brain)
+
+    autopilot.run_forever(
+        teachers=["ollama:a", "ollama:b"],
+        topics_path=None,
+        interval_seconds=0,
+        train_every=0,
+        train_steps=10,
+        max_cycles=4,
+    )
+
+    assert seen_specs == ["ollama:a", "ollama:b", "ollama:a", "ollama:b"]
+
+
 def test_run_forever_cycles_and_trains(monkeypatch):
     monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", lambda spec: FakeTeacher())
 
     autopilot.run_forever(
-        teacher="fake:whatever",
+        teachers=["fake:whatever"],
         topics_path=None,
         interval_seconds=0,
         train_every=2,
@@ -77,3 +149,28 @@ def test_run_forever_cycles_and_trains(monkeypatch):
     assert latest is not None
     assert latest["steps"] == 10
     assert latest["num_examples"] == 2
+
+
+def test_run_forever_dynamic_curriculum_grows(monkeypatch, tmp_path):
+    topics_file = tmp_path / "topics.txt"
+    topics_file.write_text("topic a\ntopic b\n")
+
+    monkeypatch.setattr(
+        "kafkaf.core.enrichment.autopilot.get_brain", lambda spec: SmartFakeTeacher()
+    )
+
+    autopilot.run_forever(
+        teachers=["ollama:a"],
+        topics_path=str(topics_file),
+        interval_seconds=0,
+        train_every=0,
+        train_steps=10,
+        max_cycles=3,
+        dynamic_curriculum=True,
+    )
+
+    # cycle 2 (0-indexed, third iteration) wraps the 2-topic list and should
+    # trigger growth, teaching a freshly-proposed topic on the third call.
+    examples = store.get_unused_examples()
+    topics_taught = {example["topic"] for example in examples}
+    assert "new topic one" in topics_taught

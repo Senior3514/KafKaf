@@ -68,11 +68,17 @@ growing model are shared across all of them.
 
 | Interface | How |
 |---|---|
-| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown in the top bar to switch between the default chat model and "your own" model. |
-| **CLI** | `pip install -e .` then `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to either to talk to your own model instead. |
+| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or flip the council toggle to ask several models at once (see below). |
+| **CLI** | `pip install -e .` then `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to talk to your own model, or `--council` to fan out to every `KAFKAF_COUNCIL_BRAINS` brain. |
 | **Desktop app** | `pip install -e ".[desktop]"` then `kafkaf-desktop` — a native window, same GUI. Or download a pre-built executable from the "Build desktop app" GitHub Actions workflow. |
-| **API** | `POST /chat` with `{"message": "...", "brain": "own"}` — see `docs/ARCHITECTURE.md`. |
+| **API** | `POST /chat` with `{"message": "...", "brain": "own"}` or `{"council": true}` — see `docs/ARCHITECTURE.md`. |
 | **MCP** (Claude Desktop/Code) | `pip install -e ".[mcp,train]"` then `kafkaf-mcp`, wired into `claude_desktop_config.json` — see `docs/SETUP.md`. This is also how you manually teach/train (below), not just chat. |
+
+**Council mode** — instead of one model answering, set
+`KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen2.5:3b` (add API models if
+you have keys) and every configured brain answers your question in
+parallel; one gets synthesized into a final reply. Real, working
+"get several models to help," not training — see `docs/SETUP.md`.
 
 ## 3. Keep it updated from the repo
 
@@ -118,11 +124,23 @@ KAFKAF_AUTOPILOT_TRAIN_STEPS=100 \
 python install.py --autopilot
 ```
 
-Switching `KAFKAF_AUTOPILOT_TEACHER` to an API model (`openai:...`,
-`anthropic:...`, `gemini:...`) means every cycle makes a real, billed API
-call — fine deliberately, but know that before turning the interval down.
+**Many teachers, not just one** — comma-separate several specs and
+autopilot rotates through them, one topic taught by a different model each
+time: `KAFKAF_AUTOPILOT_TEACHER=ollama:llama3,ollama:qwen2.5:3b,openai:gpt-4o-mini`.
+Switching in an API model (`openai:...`, `anthropic:...`, `gemini:...`)
+means every cycle involving it makes a real, billed API call — fine
+deliberately, but know that before turning the interval down or adding
+several paid teachers.
 
-Customize *what* it learns by pointing `topics_file` at your own
+**Curriculum that grows itself** — add `KAFKAF_AUTOPILOT_DYNAMIC_CURRICULUM=1`
+and once the starting topic list is exhausted, autopilot asks the current
+teacher to propose new, non-duplicate topics and keeps extending the list.
+This is the teacher (a real, capable model) generating what to learn next
+— not the small owned model directing its own training, which would be far
+too weak early on to do anything coherent there. Worth being precise about
+that distinction even as it gets more capable over time.
+
+Customize the *starting* curriculum by pointing `topics_file` at your own
 newline-separated list (one topic per line, `#` for comments) instead of
 the small built-in default — see `kafkaf/core/enrichment/topics.py`.
 
@@ -156,7 +174,7 @@ setup: `docs/SETUP.md`.
 
 ## What's next
 
-See `docs/ROADMAP.md` for the phased plan — council/multi-brain routing,
-skills, a richer terminal UI, and scaling the own-model track up as
-hardware allows. This is a "grow it over time" project; this guide will
+See `docs/ROADMAP.md` for the phased plan — a tool-use skills system,
+multiple personas, a richer terminal UI, and scaling the own-model track up
+as hardware allows. This is a "grow it over time" project; this guide will
 grow with it.

@@ -62,6 +62,13 @@ body {
   font-size: 0.85rem;
 }
 
+.model-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .brain-select {
   font-size: 0.8rem;
   padding: 6px 10px;
@@ -69,7 +76,21 @@ body {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  max-width: 55%;
+  min-width: 0;
+}
+
+.council-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.council-toggle input {
+  accent-color: var(--accent);
 }
 
 .chat {

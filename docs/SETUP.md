@@ -190,25 +190,61 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.local.yml -
 ```
 Tune it with env vars *before* running the above (Compose bakes them into
 the container's command at start time): `KAFKAF_AUTOPILOT_TEACHER` (default
-`ollama:qwen2.5:3b` — free, local), `KAFKAF_AUTOPILOT_INTERVAL_SECONDS`
+`ollama:qwen2.5:3b` — free, local; **comma-separate multiple specs to
+rotate through them**, e.g. `ollama:llama3,ollama:qwen2.5:3b,openai:gpt-4o-mini`
+— different topics get taught by different models), `KAFKAF_AUTOPILOT_INTERVAL_SECONDS`
 (default `300`), `KAFKAF_AUTOPILOT_TRAIN_EVERY` (default `5`),
-`KAFKAF_AUTOPILOT_TRAIN_STEPS` (default `100`). Watch it:
+`KAFKAF_AUTOPILOT_TRAIN_STEPS` (default `100`), and
+`KAFKAF_AUTOPILOT_DYNAMIC_CURRICULUM` (set to `1` to let the teacher
+propose new topics once the starting list runs out — see below). Watch it:
 `docker compose -f deploy/docker-compose.yml logs -f autopilot`.
 
 **Standalone** (no Docker):
 ```
 pip install -e ".[train]"
-kafkaf-autopilot --teacher ollama:qwen2.5:3b --interval-seconds 300
+kafkaf-autopilot --teacher "ollama:qwen2.5:3b,ollama:llama3" --interval-seconds 300 --dynamic-curriculum
 ```
 Run `kafkaf-autopilot --help` for every option, including `--topics-file`
-to teach it your own curriculum instead of the small built-in default
-(`kafkaf/core/enrichment/topics.py`).
+to teach it your own starting curriculum instead of the small built-in
+default (`kafkaf/core/enrichment/topics.py`).
+
+**Dynamic curriculum**: with `--dynamic-curriculum`, once the starting
+topic list is exhausted, autopilot asks the *current teacher* (a real,
+capable model) to propose new topics that haven't been covered yet, and
+keeps extending the list — the curriculum genuinely grows on its own over
+time. This is the teacher generating what to learn next, not the small
+owned model directing its own training (which is far too weak early on to
+do that usefully) — an honest distinction worth keeping in mind.
 
 The defaults are deliberately conservative, not "as fast as possible" — an
 unattended loop hammering a paid API or a CPU flat-out is a cost/stability
-risk, not a feature. Switching the teacher to `openai:`/`anthropic:`/
-`gemini:` means every cycle is a real, billed API call; know that before
-turning the interval down.
+risk, not a feature. Switching a teacher to `openai:`/`anthropic:`/
+`gemini:` means every cycle involving it is a real, billed API call; know
+that before turning the interval down or adding several paid teachers to
+the rotation.
+
+## Council: many models, one answer
+
+Instead of picking one brain, council mode fans your question out to
+*every* brain in `KAFKAF_COUNCIL_BRAINS` in parallel and synthesizes their
+answers into one — real, working "get several models to help answer this,"
+not just training. Set:
+
+```
+KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen2.5:3b
+```
+
+(add `openai:gpt-4o-mini`, `anthropic:claude-3-5-haiku-latest`,
+`gemini:gemini-1.5-flash` if you've set the matching API key). Then use it
+from any interface:
+
+- Web GUI: the "מועצת מוחות" (council) toggle next to the model dropdown.
+- CLI: `kafkaf chat --council "..."` or `kafkaf repl --council`.
+- API: `POST /chat` with `{"council": true, ...}`.
+
+If a brain in the list errors (bad key, network issue), it's just excluded
+from that round — council mode only fails if *every* configured brain
+fails. See `docs/ARCHITECTURE.md` for how the fan-out/synthesis works.
 
 ## Configuration
 
@@ -227,3 +263,4 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | `KAFKAF_OPENAI_API_KEY`      | unset                      | Enables `openai:*` as a teacher        |
 | `KAFKAF_ANTHROPIC_API_KEY`   | unset                      | Enables `anthropic:*` as a teacher     |
 | `KAFKAF_GEMINI_API_KEY`      | unset                      | Enables `gemini:*` as a teacher        |
+| `KAFKAF_COUNCIL_BRAINS`      | unset                      | Comma-separated brains for council mode |

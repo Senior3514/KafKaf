@@ -63,9 +63,18 @@ depends on a big-bang release — "grow it over time."
 - [x] **Phase 2 — Core loop end-to-end**: backend API + one local model
       (Ollama) + one persona + basic memory + thin CLI client. Works fully
       locally, zero API keys required.
-- [ ] **Phase 3 — Council + skills**: parallel multi-brain routing and
-      synthesis, tool-use skills plugin system, multiple personas, optional
-      API-model brains.
+- [x] **Phase 3 — Council (initial slice)**: `council.council_chat()` fans a
+      query out to every brain listed in `KAFKAF_COUNCIL_BRAINS` in
+      parallel (`asyncio.gather`), then synthesizes one final answer from
+      whichever actually responded — the Mixture-of-Agents pattern (Wang et
+      al. 2024): combining existing models' answers, not creating new
+      general capability. Reachable via `/chat`'s `council: true`, `kafkaf
+      chat --council` / `kafkaf repl --council`, and a web GUI toggle.
+      Partial failures degrade gracefully (a brain that errors is just
+      excluded, not fatal — see `docs/ROADMAP.md`'s multi-agent-systems
+      citation on coordination failures for why this matters as brain count
+      grows). Not yet done: a tool-use skills plugin system, multiple
+      personas.
 - [x] **Phase 4 — Web (mobile-first) + terminal**: a mobile-first web GUI
       (`kafkaf/clients/web/static/`) served directly by the backend — no
       build step, no separate deploy. `kafkaf repl` gives the CLI an
@@ -101,10 +110,18 @@ depends on a big-bang release — "grow it over time."
       its own Docker service (`deploy/docker-compose.autopilot.yml`,
       `install.py --autopilot`) — deliberately paced, not "as fast as
       possible," since an unattended loop hammering a paid API or a CPU
-      flat-out is a cost/stability risk. Not yet done: wiring
-      `OwnModelBrain` into the council's default *routing* (it's reachable
-      today via explicit override, just not chosen automatically), and a
-      subword tokenizer upgrade.
+      flat-out is a cost/stability risk. It can **rotate through multiple
+      teacher models** (`--teacher "ollama:a,ollama:b,openai:gpt-4o-mini"`
+      — "get several models in the market to train ours," genuinely, one
+      topic at a time), and with `--dynamic-curriculum`, once the starting
+      topic list is exhausted it asks the *current teacher* to propose new,
+      non-duplicate topics and keeps growing — real autonomous curriculum
+      expansion, honestly attributed to the teacher model (a capable
+      brain), not the small owned model directing its own training, which
+      would be far too weak to do anything coherent there. Not yet done:
+      wiring `OwnModelBrain` into the council's default *routing* (it's
+      reachable today via explicit override, just not chosen
+      automatically), and a subword tokenizer upgrade.
 - [x] **Phase 7 — Deployment automation + access layer**: `install.py` at
       the repo root is the one cross-platform install command (Linux/macOS/
       Windows, since it's Python rather than a shell script); `deploy/

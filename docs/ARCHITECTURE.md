@@ -78,11 +78,21 @@ opt-in extra brains later — never required for KafKaf to work.
 
 ## Council / multi-brain pattern
 
-`core/council.py` is the single seam where a chat turn is resolved. Today it
-routes to one configured brain. The intended growth path (see
-`docs/ROADMAP.md`, phase 3) is: fan a query out to N configured brains in
-parallel, then synthesize/rank the answers — an honest "ensemble of models"
+`core/council.py` is the single seam where a chat turn is resolved.
+`handle_chat()` routes to one configured brain by default. **Council
+mode** (`council_chat()`) fans the same messages out to every brain in a
+configured list via `asyncio.gather` (partial failures are excluded, not
+fatal — see `_gather_answers`), then asks a synthesizer brain to combine
+whichever answers actually came back into one final reply. This is the
+Mixture-of-Agents pattern (Wang et al. 2024, arXiv:2406.04692, cited in
+`docs/ROADMAP.md`'s vision section) — an honest "ensemble of models"
 version of "multiple brains," not a claim of general intelligence.
+
+Configured via `KAFKAF_COUNCIL_BRAINS` (comma-separated specs, e.g.
+`"ollama:llama3,ollama:qwen2.5:3b"`), triggered per-request: `/chat`'s
+`council: true`, `kafkaf chat --council` / `kafkaf repl --council`, or the
+web GUI's council toggle (which disables the brain dropdown — council mode
+picks its own brains from config, not a single override).
 
 ## Memory
 
@@ -115,8 +125,13 @@ the exact storage pattern of `core/memory/store.py`:
 
 `core/enrichment/autopilot.py` automates the teach → train loop
 unattended: it cycles through a curriculum (`topics.py` — a small default,
-or your own file), calls `distill_from_teacher` for each topic, and
-triggers `run_training_step` every few topics. Runs as `kafkaf-autopilot`,
+or your own file) and a **rotation of teacher brains** (comma-separated
+specs — different topics get taught by different models), calls
+`distill_from_teacher` for each topic, and triggers `run_training_step`
+every few topics. With `--dynamic-curriculum`, once the starting topic
+list is exhausted, `propose_topics()` asks the current teacher to suggest
+new, non-duplicate topics and the list keeps growing — the curriculum
+expands on its own, driven by a real model. Runs as `kafkaf-autopilot`,
 standalone or as its own Docker service
 (`deploy/docker-compose.autopilot.yml`) sharing the backend's data volume.
 Pacing defaults are conservative on purpose — see `docs/SETUP.md`.

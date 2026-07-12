@@ -8,11 +8,19 @@ app = typer.Typer(help="KafKaf CLI — talk to your local KafKaf instance.")
 DEFAULT_URL = "http://localhost:8420"
 
 
-def _send(url: str, session_id: str, persona: str, message: str, brain: str | None) -> str:
+def _send(
+    url: str, session_id: str, persona: str, message: str, brain: str | None, council: bool
+) -> str:
     response = httpx.post(
         f"{url}/chat",
-        json={"message": message, "session_id": session_id, "persona": persona, "brain": brain},
-        timeout=120.0,
+        json={
+            "message": message,
+            "session_id": session_id,
+            "persona": persona,
+            "brain": brain,
+            "council": council,
+        },
+        timeout=180.0,
     )
     if response.is_error:
         detail = response.json().get("detail", response.text) if response.text else response.text
@@ -28,11 +36,14 @@ def chat(
     brain: str = typer.Option(
         None, help="Brain override, e.g. 'own' or 'ollama:llama3'. Defaults to the persona's."
     ),
+    council: bool = typer.Option(
+        False, "--council", help="Fan out to every KAFKAF_COUNCIL_BRAINS brain and synthesize one answer."
+    ),
     url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
 ) -> None:
     """Send a single message to KafKaf and print the reply."""
     session_id = session or str(uuid.uuid4())
-    typer.echo(_send(url, session_id, persona, message, brain))
+    typer.echo(_send(url, session_id, persona, message, brain, council))
 
 
 @app.command()
@@ -42,11 +53,14 @@ def repl(
     brain: str = typer.Option(
         None, help="Brain override, e.g. 'own' or 'ollama:llama3'. Defaults to the persona's."
     ),
+    council: bool = typer.Option(
+        False, "--council", help="Fan out to every KAFKAF_COUNCIL_BRAINS brain and synthesize one answer."
+    ),
     url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
 ) -> None:
     """Start an interactive terminal chat session. Type 'exit' or Ctrl+C/Ctrl+D to leave."""
     session_id = session or str(uuid.uuid4())
-    label = brain or persona
+    label = "council" if council else (brain or persona)
     typer.echo(f"KafKaf ({label}) — session {session_id}. Type 'exit' to leave.\n")
 
     while True:
@@ -61,7 +75,7 @@ def repl(
             break
 
         try:
-            reply = _send(url, session_id, persona, message, brain)
+            reply = _send(url, session_id, persona, message, brain, council)
         except httpx.HTTPError as exc:
             typer.echo(f"error: {exc}")
             continue

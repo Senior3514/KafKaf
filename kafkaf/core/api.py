@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from kafkaf.core import council
 from kafkaf.core.brains.registry import get_brain
+from kafkaf.core.config import settings
 from kafkaf.core.memory import store
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "clients" / "web" / "static"
@@ -30,6 +31,9 @@ class ChatRequest(BaseModel):
     # client (like the web GUI's model toggle) talk to a specific brain
     # instead of the default one, reusing the same registry MCP tools use.
     brain: str | None = None
+    # Fan the query out to every brain in KAFKAF_COUNCIL_BRAINS and
+    # synthesize one answer, instead of a single brain replying directly.
+    council: bool = False
 
 
 class ChatResponse(BaseModel):
@@ -51,9 +55,22 @@ async def chat(request: ChatRequest) -> ChatResponse:
         except (ValueError, RuntimeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    council_brains = None
+    if request.council:
+        council_brains = [s.strip() for s in (settings.council_brains or "").split(",") if s.strip()]
+        if not council_brains:
+            raise HTTPException(
+                status_code=400,
+                detail="Council mode requested but KAFKAF_COUNCIL_BRAINS is not configured.",
+            )
+
     try:
         reply = await council.handle_chat(
-            request.session_id, request.message, request.persona, brain=brain
+            request.session_id,
+            request.message,
+            request.persona,
+            brain=brain,
+            council_brains=council_brains,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -3,6 +3,7 @@ const formEl = document.getElementById("composer");
 const inputEl = document.getElementById("message");
 const sendBtn = formEl.querySelector(".send-btn");
 const brainSelectEl = document.getElementById("brain-select");
+const councilToggleEl = document.getElementById("council-toggle");
 
 const SESSION_KEY = "kafkaf-session-id";
 let sessionId = localStorage.getItem(SESSION_KEY);
@@ -16,6 +17,14 @@ brainSelectEl.value = localStorage.getItem(BRAIN_KEY) || "";
 brainSelectEl.addEventListener("change", () => {
   localStorage.setItem(BRAIN_KEY, brainSelectEl.value);
 });
+
+const COUNCIL_KEY = "kafkaf-council";
+councilToggleEl.checked = localStorage.getItem(COUNCIL_KEY) === "1";
+councilToggleEl.addEventListener("change", () => {
+  localStorage.setItem(COUNCIL_KEY, councilToggleEl.checked ? "1" : "0");
+  brainSelectEl.disabled = councilToggleEl.checked;
+});
+brainSelectEl.disabled = councilToggleEl.checked;
 
 function addBubble(role, text) {
   const bubble = document.createElement("div");
@@ -55,7 +64,8 @@ formEl.addEventListener("submit", async (event) => {
       body: JSON.stringify({
         message,
         session_id: sessionId,
-        brain: brainSelectEl.value || null,
+        brain: councilToggleEl.checked ? null : brainSelectEl.value || null,
+        council: councilToggleEl.checked,
       }),
     });
     const data = await response.json();

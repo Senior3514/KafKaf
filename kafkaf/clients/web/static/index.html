@@ -9,10 +9,16 @@
 <body>
   <header class="topbar">
     <div class="brand">כףכף <span class="brand-sub">KafKaf</span></div>
-    <select id="brain-select" class="brain-select" aria-label="מודל">
-      <option value="">מודל ברירת מחדל (Ollama)</option>
-      <option value="own">המודל שלנו (גדל עם הזמן)</option>
-    </select>
+    <div class="model-controls">
+      <select id="brain-select" class="brain-select" aria-label="מודל">
+        <option value="">מודל ברירת מחדל (Ollama)</option>
+        <option value="own">המודל שלנו (גדל עם הזמן)</option>
+      </select>
+      <label class="council-toggle">
+        <input type="checkbox" id="council-toggle" />
+        <span>מועצת מוחות</span>
+      </label>
+    </div>
   </header>
 
   <main id="chat" class="chat" role="log" aria-live="polite"></main>

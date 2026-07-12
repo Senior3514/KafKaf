@@ -22,5 +22,8 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-1.5-flash"
 
+    # Comma-separated brain specs for council mode, e.g. "ollama:llama3,ollama:qwen2.5:3b".
+    council_brains: str | None = None
+
 
 settings = Settings()
