@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.db
+dist/
+build/
+.pytest_cache/
+node_modules/
+deploy/.compose-mode
+*.spec
+/workspace/

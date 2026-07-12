@@ -1,0 +1,35 @@
+# Base stack: Ollama + the KafKaf backend, with no public port publishing.
+# This file alone is not meant to be run by itself — combine it with either
+# docker-compose.local.yml (publish the backend on the host, the default) or
+# docker-compose.tailscale.yml (reachable only over your private tailnet, no
+# public exposure at all). install.py picks the right combination for you.
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"  # loopback only — Ollama is an internal dependency, not a product surface
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      KAFKAF_OLLAMA_HOST: http://ollama:11434
+      KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen3:4b}
+      KAFKAF_DB_PATH: /data/kafkaf.db
+      # Without this, the default checkpoint path is relative and lands in
+      # the container's ephemeral working dir, not the mounted volume below
+      # — trained weights would be silently lost on every restart.
+      KAFKAF_OWN_MODEL_CHECKPOINT_PATH: /data/kafkaf-own-model.pt
+    volumes:
+      - backend-data:/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+  backend-data:
