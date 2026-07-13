@@ -211,7 +211,6 @@ autopilot run did while you weren't watching; `KAFKAF_RATE_LIMIT_PER_MINUTE`
 
 ## What's next
 
-See `docs/ROADMAP.md` for the phased plan — a tool-use skills system,
-multiple personas, a richer terminal UI, and scaling the own-model track up
-as hardware allows. This is a "grow it over time" project; this guide will
-grow with it.
+See `docs/ROADMAP.md` for the phased plan — a richer terminal UI, and
+scaling the own-model track up as hardware allows. This is a "grow it over
+time" project; this guide will grow with it.

@@ -86,17 +86,19 @@ depends on a big-bang release — "grow it over time."
       than not having one; a properly isolated version (subprocess +
       resource limits, or container isolation) is a real follow-up, not a
       shortcut. Reachable via `/chat`'s `skills: true`, `kafkaf chat
-      --skills` / `kafkaf repl --skills`, and a web GUI toggle (mutually
-      exclusive with council mode for now — see `docs/ARCHITECTURE.md`).
-      Not yet done: multiple personas, combining skills with council mode
-      in one turn.
+      --skills` / `kafkaf repl --skills`, and a web GUI toggle. Both
+      "not yet done" items noted here at the time — multiple personas, and
+      combining skills with council mode in one turn — shipped in phase 11;
+      see that entry for what changed and `docs/ARCHITECTURE.md` for the
+      current (combinable) behavior.
 - [x] **Phase 4 — Web (mobile-first) + terminal**: a mobile-first web GUI
       (`kafkaf/clients/web/static/`) served directly by the backend — no
       build step, no separate deploy. `kafkaf repl` gives the CLI an
-      interactive terminal session. Not yet done: a richer `textual`-based
-      TUI (today's `repl` is a plain readline-style loop, which covers the
-      "terminal" need but isn't a full TUI); a PWA manifest for
-      installable/offline web use.
+      interactive terminal session. The PWA manifest noted here as "not yet
+      done" shipped in phase 11 (`manifest.json` + `sw.js`). Still not yet
+      done: a richer `textual`-based TUI (today's `repl` is a plain
+      readline-style loop, which covers the "terminal" need but isn't a
+      full TUI).
 - [x] **Phase 5 — Desktop packaging**: `kafkaf/clients/desktop/` wraps the
       web GUI in a native window via `pywebview` (pure Python — chosen over
       Tauri specifically to avoid adding a Rust toolchain to the build).
@@ -150,13 +152,18 @@ depends on a big-bang release — "grow it over time."
       --tailscale` gives a real private access layer — the backend is
       reachable only on your own tailnet, no public port at all
       (`deploy/docker-compose.tailscale.yml`, verified via `docker compose
-      config` to merge correctly — no Docker daemon was available in the dev
-      sandbox to run it live, so real tailnet connectivity is confirmed on
-      first real use). Ollama's port is loopback-only in every mode. Not yet
-      done: contribution docs for the public release, and the docker-compose
-      named-volume → bind-mount fix noted in the phase 6 MCP section (only
-      needed if the dockerized backend and a host-run MCP server must share
-      one sqlite file).
+      config` to merge correctly; also attempted live in a later dev sandbox
+      that did have a Docker daemon, where `python install.py` got as far as
+      `docker compose up -d --build` before failing to pull the
+      `ollama/ollama:latest` base image — that sandbox's outbound proxy
+      blocks/expires Docker Hub's signed CloudFront blob URLs, a sandbox
+      network-policy limitation, not a bug in `install.py` or the compose
+      files; real tailnet/Docker-Hub connectivity is still confirmed on
+      first real VPS use). Ollama's port is loopback-only in every mode.
+      Contribution docs now ship as `CONTRIBUTING.md` (phase 11). Not yet
+      done: the docker-compose named-volume → bind-mount fix noted in the
+      phase 6 MCP section (only needed if the dockerized backend and a
+      host-run MCP server must share one sqlite file).
 - [x] **Phase 8 — Research-driven hardening and a knowledge-search skill**:
       a research pass comparing KafKaf against other self-hosted AI
       platforms (Open WebUI, LibreChat, LM Studio, Jan.ai, and others)
@@ -226,6 +233,31 @@ depends on a big-bang release — "grow it over time."
       inferred one. Two independent declines on the same capability is
       treated as a firm signal, not a threshold to route around with
       different tooling next time.
+- [x] **Phase 11 — Personas, combined council+skills, and an installable
+      web app**: three real personas now ship (`default`/`researcher`/
+      `coach`, `core/personas/`), selectable from the web GUI's new
+      dropdown, `kafkaf chat --persona`, or `/chat`'s `persona` field —
+      closing the phase 3 "not yet done" item. **Skills now combine with
+      council mode**, also closing a phase 3 item: `council.council_chat()`
+      takes a `use_skills` flag, and when set, `_gather_answers()` runs
+      every council brain through `run_skill_loop()` independently before
+      synthesis — a real "several models, each with tools," not one flag
+      silently overriding the other (`core/api.py`'s `skills` field no
+      longer says "ignored if council=true," and the web GUI no longer
+      disables the skills toggle when council is on). The web GUI is now an
+      installable PWA — `manifest.json` + `sw.js` (cache-first for GETs
+      only; `/chat`/`/audit` POSTs and always-fresh reads are never served
+      stale), served from `GET /sw.js` at the root so its scope covers the
+      whole app, not just `/static/*`. Icons are minimal generated PNGs
+      (solid accent-color circle mark, no external image tooling available
+      in the dev sandbox) — a real logo is an easy follow-up swap, not a
+      blocker. `CONTRIBUTING.md` ships, closing the phase 7 "not yet done"
+      item — codebase conventions (storage pattern, brain interface, skill
+      shape, dependency philosophy) and an explicit note that
+      security-sensitive capability requests need a specific, named
+      description of the new capability and its blast radius, not a general
+      "more autonomy" ask (see phase 9/10 for why that's a firm rule here,
+      not boilerplate).
 
 ## Deferred / future work
 
@@ -236,8 +268,10 @@ built yet — named here so nothing is silently dropped:
   needed only if KafKaf is ever meant for more than one trusted
   user/household over Tailscale; today's rate limiting and audit log are
   single-user-shaped, not multi-tenant-safe.
-- **A dedicated mobile app or PWA** reachable over the existing Tailscale
-  mesh, rather than only a mobile-first web GUI.
+- **A dedicated native mobile app**, if the phase 11 PWA (installable,
+  works over Tailscale, but still a web view under the hood) ever proves
+  insufficient — push notifications and background sync are the concrete
+  things a PWA can't do that a native app could.
 - **A real observability sidecar** (e.g. self-hosted Langfuse or
   OpenTelemetry) for tracing/cost visibility across council-mode's
   multi-model fan-out, beyond what the audit log's summary rows capture.

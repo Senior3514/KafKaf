@@ -1,4 +1,6 @@
+from kafkaf.core.personas.coach import COACH_PERSONA
 from kafkaf.core.personas.models import Persona
+from kafkaf.core.personas.researcher import RESEARCHER_PERSONA
 
 DEFAULT_PERSONA = Persona(
     key="default",
@@ -10,7 +12,11 @@ DEFAULT_PERSONA = Persona(
     ),
 )
 
-PERSONAS = {DEFAULT_PERSONA.key: DEFAULT_PERSONA}
+PERSONAS = {
+    DEFAULT_PERSONA.key: DEFAULT_PERSONA,
+    RESEARCHER_PERSONA.key: RESEARCHER_PERSONA,
+    COACH_PERSONA.key: COACH_PERSONA,
+}
 
 
 def get_persona(key: str) -> Persona:

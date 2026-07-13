@@ -62,6 +62,23 @@ def test_web_gui_static_assets():
     assert css.status_code == 200
 
 
+def test_pwa_manifest_and_icons_served():
+    with TestClient(app) as client:
+        manifest = client.get("/static/manifest.json")
+        icon = client.get("/static/icons/icon-192.png")
+    assert manifest.status_code == 200
+    assert manifest.json()["name"] == "KafKaf"
+    assert icon.status_code == 200
+    assert icon.headers["content-type"] == "image/png"
+
+
+def test_service_worker_served_from_root_scope():
+    with TestClient(app) as client:
+        response = client.get("/sw.js")
+    assert response.status_code == 200
+    assert "install" in response.text
+
+
 def test_chat_brain_override_used(monkeypatch):
     class OverrideBrain(Brain):
         name = "override"
@@ -178,6 +195,44 @@ def test_chat_skills_allowed_at_assisted_level(monkeypatch):
             "/chat", json={"message": "hi", "session_id": "s-assisted", "skills": True}
         )
     assert response.status_code == 200
+
+
+def test_chat_council_and_skills_combine(monkeypatch):
+    class ToolBrain(Brain):
+        def __init__(self, name: str, final: str):
+            self.name = name
+            self._final = final
+            self._calls = 0
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            self._calls += 1
+            if self._calls == 1:
+                return "ACTION: calculator: 1 + 1"
+            return f"FINAL ANSWER: {self._final}"
+
+    class EchoSynthesizer(Brain):
+        name = "synthesizer"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return messages[0]["content"]
+
+    brains = {"a:1": ToolBrain("brain-a", "two"), "a:2": ToolBrain("brain-b", "also two")}
+    monkeypatch.setattr("kafkaf.core.config.settings.council_brains", "a:1,a:2")
+    monkeypatch.setattr(council, "get_brain", lambda spec: brains[spec])
+    monkeypatch.setattr(council, "_default_brain", EchoSynthesizer())
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat",
+            json={"message": "what's 1+1?", "session_id": "s-combo", "council": True, "skills": True},
+        )
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    # Both council brains ran their tool-use loop to completion (their real
+    # FINAL ANSWER made it through), not just their raw first ACTION line.
+    assert "two" in reply
+    assert "also two" in reply
+    assert "ACTION" not in reply
 
 
 def test_chat_skills_mode_executes_tools(monkeypatch):

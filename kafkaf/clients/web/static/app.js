@@ -1,8 +1,17 @@
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    // Registered from the root (not /static/sw.js) so its scope covers the
+    // whole app, not just /static/* requests — see kafkaf/core/api.py.
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 const chatEl = document.getElementById("chat");
 const formEl = document.getElementById("composer");
 const inputEl = document.getElementById("message");
 const sendBtn = formEl.querySelector(".send-btn");
 const brainSelectEl = document.getElementById("brain-select");
+const personaSelectEl = document.getElementById("persona-select");
 const councilToggleEl = document.getElementById("council-toggle");
 const skillsToggleEl = document.getElementById("skills-toggle");
 
@@ -19,15 +28,21 @@ brainSelectEl.addEventListener("change", () => {
   localStorage.setItem(BRAIN_KEY, brainSelectEl.value);
 });
 
+const PERSONA_KEY = "kafkaf-persona";
+personaSelectEl.value = localStorage.getItem(PERSONA_KEY) || "default";
+personaSelectEl.addEventListener("change", () => {
+  localStorage.setItem(PERSONA_KEY, personaSelectEl.value);
+});
+
 const COUNCIL_KEY = "kafkaf-council";
 councilToggleEl.checked = localStorage.getItem(COUNCIL_KEY) === "1";
 councilToggleEl.addEventListener("change", () => {
   localStorage.setItem(COUNCIL_KEY, councilToggleEl.checked ? "1" : "0");
+  // Council mode picks its own brains from config, not a single override —
+  // but skills combines with it (each council brain gets tool use).
   brainSelectEl.disabled = councilToggleEl.checked;
-  skillsToggleEl.disabled = councilToggleEl.checked; // skills is ignored server-side when council is on
 });
 brainSelectEl.disabled = councilToggleEl.checked;
-skillsToggleEl.disabled = councilToggleEl.checked;
 
 const SKILLS_KEY = "kafkaf-skills";
 skillsToggleEl.checked = localStorage.getItem(SKILLS_KEY) === "1";
@@ -73,9 +88,10 @@ formEl.addEventListener("submit", async (event) => {
       body: JSON.stringify({
         message,
         session_id: sessionId,
+        persona: personaSelectEl.value,
         brain: councilToggleEl.checked ? null : brainSelectEl.value || null,
         council: councilToggleEl.checked,
-        skills: !councilToggleEl.checked && skillsToggleEl.checked,
+        skills: skillsToggleEl.checked,
       }),
     });
     const data = await response.json();

@@ -99,6 +99,10 @@ Run the backend without Docker (needs a local Ollama running on
 kafkaf-server
 ```
 
+Contributing? See `CONTRIBUTING.md` for this codebase's conventions
+(storage pattern, brain interface, skill shape, dependency philosophy)
+before opening a PR.
+
 ## Project layout
 
 See `docs/ARCHITECTURE.md` for the full picture. In short:
