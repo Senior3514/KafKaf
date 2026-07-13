@@ -5,11 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KafKaf (כףכף)</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <meta name="theme-color" content="#2f6fed" />
+  <link rel="icon" href="/static/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="KafKaf" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">כףכף <span class="brand-sub">KafKaf</span></div>
     <div class="model-controls">
+      <select id="persona-select" class="brain-select" aria-label="פרסונה">
+        <option value="default">Kaf (ברירת מחדל)</option>
+        <option value="researcher">Researcher</option>
+        <option value="coach">Coach</option>
+      </select>
       <select id="brain-select" class="brain-select" aria-label="מודל">
         <option value="">מודל ברירת מחדל (Ollama)</option>
         <option value="own">המודל שלנו (גדל עם הזמן)</option>

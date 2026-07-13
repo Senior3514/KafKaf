@@ -282,6 +282,26 @@ risk, not a feature. Switching a teacher to `openai:`/`anthropic:`/
 that before turning the interval down or adding several paid teachers to
 the rotation.
 
+## Personas: different tone, same brain
+
+A persona is just a system prompt + a name (`kafkaf/core/personas/`) —
+picking one doesn't change which model answers, only how it's instructed
+to. Three ship today:
+
+| Persona | Key | Style |
+|---|---|---|
+| Kaf | `default` | Helpful, direct, honest about its own limits. |
+| Researcher | `researcher` | Precise/technical, distinguishes fact from inference, cites specifics. |
+| Coach | `coach` | Concise, ends with a clear next step, genuine (not generic) encouragement. |
+
+Pick one:
+- Web GUI: the persona dropdown next to the model dropdown.
+- CLI: `kafkaf chat --persona researcher "..."` or `kafkaf repl --persona coach`.
+- API: `POST /chat` with `{"persona": "researcher", ...}`.
+
+An unknown persona key silently falls back to `default` rather than
+erroring — see `kafkaf/core/personas/default.py`'s `get_persona()`.
+
 ## Council: many models, one answer
 
 Instead of picking one brain, council mode fans your question out to
@@ -347,9 +367,11 @@ exec skill is a real security hole; it'll come once it's genuinely
 isolated (subprocess + resource limits, or container isolation), not
 before.
 
-Skills mode and council mode are mutually exclusive for now — if both are
-requested, council wins. See `docs/ARCHITECTURE.md` for how the underlying
-ReAct tool-use loop works.
+Skills mode combines with council mode — turn both on and every council
+brain runs the tool-use loop independently before its answer is
+synthesized (`{"council": true, "skills": true}`, or both toggles/flags at
+once). See `docs/ARCHITECTURE.md` for how the underlying ReAct tool-use
+loop works.
 
 ## Configuration
 

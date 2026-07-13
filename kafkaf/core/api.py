@@ -40,8 +40,10 @@ class ChatRequest(BaseModel):
     # Fan the query out to every brain in KAFKAF_COUNCIL_BRAINS and
     # synthesize one answer, instead of a single brain replying directly.
     council: bool = False
-    # Let the brain use tools (web search, calculator, files, reminders, ...)
-    # via the ReAct loop. Ignored if council=true — see kafkaf/core/council.py.
+    # Let the brain(s) use tools (web search, calculator, files, reminders,
+    # ...) via the ReAct loop. Combines with council=true — each council
+    # brain runs the tool-use loop independently before answers are
+    # synthesized — see kafkaf/core/council.py.
     skills: bool = False
 
 
@@ -114,6 +116,14 @@ async def web_index() -> FileResponse:
     """The mobile-first web GUI, served directly by the backend — no separate
     build step or Node toolchain required."""
     return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker() -> FileResponse:
+    """Served from the root, not /static/sw.js — a service worker's default
+    scope is its own directory, so root-scoped is required to control the
+    whole app (the chat page at '/'), not just /static/* requests."""
+    return FileResponse(WEB_DIR / "sw.js", media_type="application/javascript")
 
 
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")

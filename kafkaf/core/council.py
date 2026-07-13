@@ -22,12 +22,14 @@ _default_brain: Brain = OllamaBrain()
 
 
 async def _gather_answers(
-    brain_specs: list[str], messages: list[dict[str, str]]
+    brain_specs: list[str], messages: list[dict[str, str]], use_skills: bool = False
 ) -> list[dict[str, str]]:
     brains = [get_brain(spec) for spec in brain_specs]
-    results = await asyncio.gather(
-        *(brain.generate(messages) for brain in brains), return_exceptions=True
+    calls = (
+        (run_skill_loop(brain, messages) if use_skills else brain.generate(messages))
+        for brain in brains
     )
+    results = await asyncio.gather(*calls, return_exceptions=True)
 
     answers = []
     for spec, brain, result in zip(brain_specs, brains, results):
@@ -38,11 +40,17 @@ async def _gather_answers(
 
 
 async def council_chat(
-    messages: list[dict[str, str]], brain_specs: list[str], synthesizer: Brain
+    messages: list[dict[str, str]],
+    brain_specs: list[str],
+    synthesizer: Brain,
+    use_skills: bool = False,
 ) -> str:
     """Fan a query out to several brains in parallel, then synthesize one
-    final answer from whichever of them actually responded."""
-    answers = await _gather_answers(brain_specs, messages)
+    final answer from whichever of them actually responded. With
+    use_skills=True, each brain runs the ReAct tool-use loop independently
+    before its answer is collected — a real combination of "several models"
+    and "each can use tools," not a silent no-op for one or the other."""
+    answers = await _gather_answers(brain_specs, messages, use_skills)
     if not answers:
         raise RuntimeError("All council brains failed to respond.")
     if len(answers) == 1:
@@ -74,14 +82,12 @@ async def handle_chat(
         {"role": "user", "content": message},
     ]
 
-    # council_brains takes precedence over use_skills — combining tool-use
-    # with a multi-brain fan-out in one turn is a real feature, just not
-    # this one; documented in docs/ARCHITECTURE.md.
     start = time.monotonic()
     if council_brains:
-        event_type, actor = "chat_council", ",".join(council_brains)
+        event_type = "chat_council_skills" if use_skills else "chat_council"
+        actor = ",".join(council_brains)
         synthesizer = brain or _default_brain
-        reply = await council_chat(messages, council_brains, synthesizer)
+        reply = await council_chat(messages, council_brains, synthesizer, use_skills=use_skills)
     elif use_skills:
         active_brain = brain or _default_brain
         event_type, actor = "chat_skills", active_brain.name

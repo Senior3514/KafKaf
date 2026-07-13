@@ -56,7 +56,13 @@ orchestration logic is duplicated per client:
 - **Web GUI** (`kafkaf/clients/web/static/`): plain HTML/CSS/JS, no build
   step, no Node toolchain. Served directly by the backend (`GET /` returns
   `index.html`, `/static/*` serves the rest) so "start the backend" and
-  "have a web UI" are the same action — no separate frontend deploy.
+  "have a web UI" are the same action — no separate frontend deploy. It's
+  also an installable PWA: `manifest.json` + `sw.js` (a minimal
+  cache-first-for-GETs service worker covering the app shell) let a phone
+  "Add to Home Screen" it like a native app. `sw.js` is served from `GET
+  /sw.js` (root), not `/static/sw.js` — a service worker's default scope is
+  its own directory, so root-scoped is required for it to control `/`
+  itself, not just `/static/*` requests.
 - **CLI/terminal** (`kafkaf/clients/cli/main.py`, typer): `kafkaf chat` for
   one-shot messages, `kafkaf repl` for an interactive terminal session —
   both just POST to `/chat`.
@@ -82,6 +88,16 @@ guide (a lighter CPU-constrained fallback and a heavier GPU/16GB+ upgrade
 tier). API-backed models (Claude, GPT, etc., via a user-supplied key) are
 meant to be opt-in extra brains later — never required for KafKaf to work.
 
+## Personas
+
+`core/personas/` (`Persona` — just a `key`, `name`, and `system_prompt`
+dataclass) is deliberately trivial: picking a persona changes how a brain
+is instructed, never which brain answers. `get_persona(key)` falls back to
+`default` for an unknown key rather than erroring. Three ship today
+(`default`/`researcher`/`coach` — see `docs/SETUP.md#personas-different-tone-same-brain`);
+adding one is a new file plus a `PERSONAS` dict entry, nothing else in the
+system needs to change.
+
 ## Council / multi-brain pattern
 
 `core/council.py` is the single seam where a chat turn is resolved.
@@ -98,7 +114,8 @@ Configured via `KAFKAF_COUNCIL_BRAINS` (comma-separated specs, e.g.
 `"ollama:llama3,ollama:qwen3:4b"`), triggered per-request: `/chat`'s
 `council: true`, `kafkaf chat --council` / `kafkaf repl --council`, or the
 web GUI's council toggle (which disables the brain dropdown — council mode
-picks its own brains from config, not a single override).
+picks its own brains from config, not a single override). Combines with
+skills mode — see below.
 
 ## Skills (tool use)
 
@@ -129,12 +146,15 @@ sandboxing helper in `core/skills/sandbox.py` with `files`), `reminders`
 JSON — since small local models format that far more reliably than
 structured calls.
 
-Wired into `council.handle_chat()` as `use_skills: bool`, mutually
-exclusive with council mode for this slice (council mode takes precedence
-if both are requested — combining tool-use *within* a multi-brain fan-out
-is a real feature, just not this one yet). Reachable via `/chat`'s
-`skills: true`, `kafkaf chat --skills` / `kafkaf repl --skills`, and a web
-GUI toggle.
+Wired into `council.handle_chat()` as `use_skills: bool`. It combines with
+council mode: `_gather_answers(brain_specs, messages, use_skills)` runs
+each council brain through `run_skill_loop()` instead of a plain
+`generate()` call when both are requested, so every brain in the fan-out
+gets independent tool access before synthesis — a real combination of
+"several models" and "each can use tools," not one silently overriding the
+other. Reachable via `/chat`'s `skills: true`, `kafkaf chat --skills` /
+`kafkaf repl --skills`, and a web GUI toggle (both toggles can be on at
+once).
 
 **Deliberately not shipped**: raw code execution. A hastily-sandboxed exec
 skill is a real vulnerability, not a convenience — a properly isolated
