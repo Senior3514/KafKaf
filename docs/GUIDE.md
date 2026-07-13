@@ -98,7 +98,8 @@ vector DB), persistent reminders, unit conversion, RSS feeds, weather, and
 searching what your own model has already been taught — eleven skills, all
 working with no API key required. This is the ReAct pattern (ask a model to
 act, not just answer), and it works the same way regardless of which brain
-is answering. Mutually exclusive with council mode for now. See
+is answering. Combines with council mode too — turn both on and every
+council brain gets independent tool access before synthesis. See
 `docs/SETUP.md` for the full list and `docs/ARCHITECTURE.md` for how it
 works under the hood.
 
