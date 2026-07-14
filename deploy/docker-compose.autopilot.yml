@@ -15,6 +15,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         EXTRAS: "[train]"  # autopilot needs torch to run training steps; the backend image doesn't
+    mem_limit: ${KAFKAF_AUTOPILOT_MEM_LIMIT:-3g}
     environment:
       KAFKAF_OLLAMA_HOST: http://ollama:11434
       KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen3:4b}

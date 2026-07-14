@@ -4,6 +4,52 @@ For a single end-to-end walkthrough (VPS install, every interface, growing
 your own model), see `docs/GUIDE.md`. This document is the detailed
 reference each section of that guide links back to.
 
+## Before you put this on a real, reachable VPS
+
+Read this before `python install.py` on a box with a public IP. None of
+these are bugs — they're real, current tradeoffs, stated plainly rather
+than discovered the hard way:
+
+- **No built-in authentication.** Default (`local`) mode publishes the web
+  GUI/API on `:8420` to whoever can reach that IP — there's no login, no
+  API key, nothing beyond rate limiting (`docs/SETUP.md#rate-limiting`).
+  Anyone who finds the port can chat with it, trigger skills (including
+  outbound requests *from your VPS*, via `web_search`/`web_fetch`), and
+  read `/audit`. **If this VPS is reachable beyond you personally, use
+  `--tailscale`** (no public port at all — see below) instead of the
+  default, or put your own authenticating reverse proxy in front of
+  `:8420` if you specifically need public access.
+- **Resource limits are a safety net, not a promise of good performance.**
+  `docker-compose.yml`/`docker-compose.autopilot.yml` cap container memory
+  (`KAFKAF_OLLAMA_MEM_LIMIT` default `8g`, `KAFKAF_BACKEND_MEM_LIMIT`
+  default `2g`, `KAFKAF_AUTOPILOT_MEM_LIMIT` default `3g`) so a leak or
+  runaway process gets OOM-killed inside its own container instead of
+  taking down the whole host. If you switch to the `qwen3:14b` upgrade
+  tier (see [Choosing your model](#choosing-your-model)), raise
+  `KAFKAF_OLLAMA_MEM_LIMIT` to match — the default will OOM-kill Ollama
+  under a model bigger than it expects.
+- **Disk grows and nothing prunes it yet.** The audit log, conversation
+  memory, and training corpus (`kafkaf.db`) all grow unboundedly — there's
+  no automatic retention/rotation. Fine for normal use; worth an occasional
+  `docker system df` / `du -sh` check on `/var/lib/docker/volumes/` if
+  autopilot runs unattended for weeks, especially with a small VPS disk.
+- **Confirmed by real verification, with one honest gap.** Every
+  docker-compose overlay validates via `docker compose config`, every
+  entrypoint has been exercised, and the actual own-model training loop
+  has been run for real (see `docs/ROADMAP.md`'s phase 12). What has
+  *not* been personally witnessed end-to-end in this project's own dev
+  environment is a live `docker compose up` completing a real
+  `ollama/ollama:latest` image pull — every attempt here hit that
+  sandbox's own outbound-proxy restriction on Docker Hub, not anything
+  in this repo. On a normal VPS with ordinary internet access this is a
+  well-trodden path (a plain `docker pull`), but it's honest to say it
+  wasn't watched succeed from this environment.
+
+None of this means "don't install it" — it means: use `--tailscale`
+unless you have a specific reason not to, know the memory tier you're
+signing up for, and keep an eye on disk the way you would for any
+long-running service.
+
 ## One command, any OS (recommended)
 
 Requires [Docker](https://docs.docker.com/get-docker/) — Linux, macOS, and
@@ -382,6 +428,7 @@ All settings are environment variables prefixed `KAFKAF_` (see
 |------------------------------|----------------------------|----------------------------------------|
 | `KAFKAF_OLLAMA_HOST`         | `http://localhost:11434`  | Ollama API base URL                    |
 | `KAFKAF_OLLAMA_MODEL`        | `qwen3:4b`                 | Model tag to use for chat — see [Choosing your model](#choosing-your-model) |
+| `KAFKAF_AUTONOMY_LEVEL`      | `autonomous`                | `observe`/`assisted`/`autonomous` — see [Autonomy levels](#autonomy-levels) |
 | `KAFKAF_DB_PATH`             | `kafkaf.db`                | SQLite path for memory + enrichment    |
 | `KAFKAF_HOST`                | `0.0.0.0`                  | Backend bind host                      |
 | `KAFKAF_PORT`                | `8420`                     | Backend bind port                      |
@@ -393,6 +440,9 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | `KAFKAF_COUNCIL_BRAINS`      | unset                      | Comma-separated brains for council mode |
 | `KAFKAF_SKILLS_WORKSPACE_DIR` | `workspace`               | Sandboxed directory for the `files`/`document_search` skills |
 | `KAFKAF_RATE_LIMIT_PER_MINUTE` | `120`                    | Requests/minute per client IP before `429` (`0` disables) |
+| `KAFKAF_OLLAMA_MEM_LIMIT`    | `8g`                        | Container memory cap for Ollama — raise if using the `qwen3:14b` tier |
+| `KAFKAF_BACKEND_MEM_LIMIT`   | `2g`                        | Container memory cap for the backend    |
+| `KAFKAF_AUTOPILOT_MEM_LIMIT` | `3g`                        | Container memory cap for the autopilot service |
 
 ## Choosing your model
 
