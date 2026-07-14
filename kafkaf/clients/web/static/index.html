@@ -16,7 +16,7 @@
 <body>
   <header class="topbar">
     <div class="brand">כףכף <span class="brand-sub">KafKaf</span></div>
-    <div class="model-controls">
+    <div class="model-controls" role="group" aria-label="הגדרות שיחה">
       <select id="persona-select" class="brain-select" aria-label="פרסונה">
         <option value="default">Kaf (ברירת מחדל)</option>
         <option value="researcher">Researcher</option>
@@ -39,7 +39,8 @@
 
   <main id="chat" class="chat" role="log" aria-live="polite"></main>
 
-  <form id="composer" class="composer">
+  <form id="composer" class="composer" aria-label="שליחת הודעה">
+    <label for="message" class="visually-hidden">הודעה</label>
     <textarea
       id="message"
       class="message-input"

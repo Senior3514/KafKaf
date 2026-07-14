@@ -17,7 +17,9 @@ platform for running your own AI, on your own hardware, for free.
 
 **New here? `docs/GUIDE.md` is the single start-to-finish walkthrough** —
 VPS install, every interface, growing your own model, all in one place.
-This README is the short version.
+This README is the short version. Already installed? **`docs/USAGE.md`**
+covers day-to-day use — chatting, personas, teaching your own model,
+checking what it's actually done.
 
 ## Quick start — one command, every OS
 
@@ -101,7 +103,8 @@ kafkaf-server
 
 Contributing? See `CONTRIBUTING.md` for this codebase's conventions
 (storage pattern, brain interface, skill shape, dependency philosophy)
-before opening a PR.
+before opening a PR, and `CODE_OF_CONDUCT.md` for how project spaces are
+run.
 
 ## Project layout
 

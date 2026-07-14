@@ -8,6 +8,7 @@
   --bubble-user: #2f6fed;
   --bubble-user-text: #ffffff;
   --bubble-assistant: #ffffff;
+  --error: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,7 +22,20 @@
     --bubble-user: #5b8dfb;
     --bubble-user-text: #0b0b0c;
     --bubble-assistant: #1c1c1f;
+    --error: #ff6b60;
   }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 * {
@@ -81,6 +95,13 @@ body {
   min-width: 0;
 }
 
+.brain-select:focus-visible,
+.send-btn:focus-visible,
+.council-toggle input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .council-toggle {
   display: flex;
   align-items: center;
@@ -129,8 +150,8 @@ body {
 
 .bubble.error {
   align-self: center;
-  color: #c0392b;
-  border: 1px solid #c0392b;
+  color: var(--error);
+  border: 1px solid var(--error);
   background: transparent;
 }
 
