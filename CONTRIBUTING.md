@@ -3,7 +3,7 @@
 KafKaf (כףכף) is a free, open-source, self-hosted AI platform. Contributions
 are welcome — this document covers how to get set up and what this
 codebase's existing conventions are, so a PR fits in without a big
-back-and-forth.
+back-and-forth. See `CODE_OF_CONDUCT.md` for how project spaces are run.
 
 ## Getting set up
 

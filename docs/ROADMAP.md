@@ -258,6 +258,33 @@ depends on a big-bang release — "grow it over time."
       description of the new capability and its blast radius, not a general
       "more autonomy" ask (see phase 9/10 for why that's a firm rule here,
       not boilerplate).
+- [x] **Phase 12 — A full live verification pass, and a day-to-day usage
+      guide**: everything merged through phase 11 was exercised live, not
+      just asserted — the full test suite on merged `main`, every
+      `pyproject.toml` entrypoint, all four docker-compose overlay
+      combinations, the running backend server hit over real HTTP, and
+      (the one that actually matters) the own-model pipeline run for real:
+      `teach_fact` → `distill_from_teacher` → `run_training_step(30)` on a
+      fresh checkpoint, loss `5.5664 → 3.3302`, then `chat_with_own_model`'s
+      exact production routing path exercised end to end. Caught one real
+      regression this way — a doc sentence phase 11 missed — fixed
+      immediately rather than left stale. `docs/USAGE.md` also ships: a
+      day-to-day usage guide (chat, personas/brain/council/skills,
+      teaching the own model, `kafkaf autonomy`/`kafkaf audit`) distinct
+      from `docs/GUIDE.md`'s install-focused walkthrough — the "how do I
+      actually use this once it's running" gap didn't have a home before.
+- [x] **Phase 13 — Accessibility pass and community health files**: the
+      web GUI got a real (if scoped) accessibility pass, not just a
+      cosmetic one — visible `:focus-visible` outlines on every
+      interactive control that lacked one (`.brain-select`, `.send-btn`,
+      the council/skills checkboxes), a proper (visually-hidden) `<label>`
+      for the composer textarea instead of relying on a placeholder alone,
+      `role="group"`/`aria-label` on the settings row, and a dedicated
+      `--error` color token per theme so error bubbles have real contrast
+      in dark mode instead of a fixed dark-red that washed out. `CODE_OF_
+      CONDUCT.md` ships alongside `CONTRIBUTING.md` — standard community
+      health coverage for a public repo, adapted to this project's actual
+      voice rather than dropped in unedited.
 
 ## Deferred / future work
 

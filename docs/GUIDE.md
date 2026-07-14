@@ -1,7 +1,9 @@
 # The KafKaf Guide
 
 Everything you need to install KafKaf on a VPS, talk to it from anywhere,
-and grow your own model over time — start to finish, one document.
+and grow your own model over time — start to finish, one document. Already
+installed and just want day-to-day usage (not install)? See `docs/USAGE.md`
+instead.
 
 ## What you're actually installing
 
