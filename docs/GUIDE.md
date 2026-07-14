@@ -30,6 +30,11 @@ at every step, but it stays true throughout.
 
 ## 1. Install on your VPS
 
+**On a box with a public IP, read
+`docs/SETUP.md#before-you-put-this-on-a-real-reachable-vps` first** —
+default mode has no built-in authentication; `--tailscale` below is the
+one-command fix if this VPS is reachable by anyone but you.
+
 Requires [Docker](https://docs.docker.com/get-docker/). One command:
 
 ```bash

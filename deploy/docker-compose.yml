@@ -11,11 +11,17 @@ services:
     ports:
       - "127.0.0.1:11434:11434"  # loopback only — Ollama is an internal dependency, not a product surface
     restart: unless-stopped
+    # A safety net against a runaway/leaking process eating the whole VPS,
+    # not a tight cap — generous enough for the default qwen3:4b tier. Bump
+    # this if you switch to the qwen3:14b upgrade tier (docs/SETUP.md
+    # #choosing-your-model) or you'll get OOM-killed instead of just slow.
+    mem_limit: ${KAFKAF_OLLAMA_MEM_LIMIT:-8g}
 
   backend:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    mem_limit: ${KAFKAF_BACKEND_MEM_LIMIT:-2g}
     environment:
       KAFKAF_OLLAMA_HOST: http://ollama:11434
       KAFKAF_OLLAMA_MODEL: ${KAFKAF_OLLAMA_MODEL:-qwen3:4b}
