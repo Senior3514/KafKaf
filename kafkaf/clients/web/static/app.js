@@ -6,6 +6,8 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+initLanguage();
+
 const chatEl = document.getElementById("chat");
 const formEl = document.getElementById("composer");
 const inputEl = document.getElementById("message");
@@ -94,15 +96,138 @@ formEl.addEventListener("submit", async (event) => {
         skills: skillsToggleEl.checked,
       }),
     });
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      // The backend always returns JSON, success or failure (see
+      // core/api.py) — a response that isn't valid JSON means something
+      // below the app itself failed (a proxy, the server process dying
+      // mid-request, ...), not a normal error path.
+      throw new Error(`Backend returned ${response.status} with a non-JSON body`);
+    }
     if (!response.ok) {
       throw new Error(data.detail || `Backend returned ${response.status}`);
     }
     addBubble("assistant", data.reply);
   } catch (err) {
-    addBubble("error", `שגיאה: ${err.message}`);
+    addBubble("error", `${t("error_prefix")}: ${err.message}`);
   } finally {
     sendBtn.disabled = false;
     inputEl.focus();
   }
 });
+
+// ---------------------------------------------------------------------
+// Theme: light / dark / auto. Auto tries a real local sunset/sunrise
+// calculation (via geolocation) and falls back to the OS's own
+// prefers-color-scheme if location isn't available or is denied.
+// ---------------------------------------------------------------------
+
+const THEME_KEY = "kafkaf-theme";
+const GEO_KEY = "kafkaf-geo";
+const THEME_ORDER = ["light", "dark", "auto"];
+const themeToggleEl = document.getElementById("theme-toggle");
+const themeIconEl = document.getElementById("theme-icon");
+let autoRefreshTimer = null;
+
+function systemPrefersDark() {
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+// Sunrise/sunset equation (Almanac for Computers, 1990) — a well-known,
+// offline-computable approximation (accurate to a few minutes), not a
+// precision astronomical result. Good enough for "should the UI look
+// like night right now," not for anything else.
+function sunEventUtcHours(lat, lon, date, isSunrise) {
+  const rad = Math.PI / 180;
+  const deg = 180 / Math.PI;
+  const start = Date.UTC(date.getFullYear(), 0, 1);
+  const today = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayOfYear = Math.round((today - start) / 86400000) + 1;
+  const lngHour = lon / 15;
+  const th = isSunrise ? 6 : 18;
+  const tt = dayOfYear + (th - lngHour) / 24;
+  const M = 0.9856 * tt - 3.289;
+  let L = M + 1.916 * Math.sin(rad * M) + 0.02 * Math.sin(2 * rad * M) + 282.634;
+  L = ((L % 360) + 360) % 360;
+  let RA = deg * Math.atan(0.91764 * Math.tan(rad * L));
+  RA = ((RA % 360) + 360) % 360;
+  const Lquadrant = Math.floor(L / 90) * 90;
+  const RAquadrant = Math.floor(RA / 90) * 90;
+  RA = (RA + (Lquadrant - RAquadrant)) / 15;
+  const sinDec = 0.39782 * Math.sin(rad * L);
+  const cosDec = Math.cos(Math.asin(sinDec));
+  const zenith = 90.833;
+  const cosH = (Math.cos(rad * zenith) - sinDec * Math.sin(rad * lat)) / (cosDec * Math.cos(rad * lat));
+  if (cosH > 1 || cosH < -1) return null; // sun never rises/sets today at this latitude
+  let H = isSunrise ? 360 - deg * Math.acos(cosH) : deg * Math.acos(cosH);
+  H = H / 15;
+  const T = H + RA - 0.06571 * tt - 6.622;
+  return ((T - lngHour) % 24 + 24) % 24;
+}
+
+function utcHoursToDate(date, utcHours) {
+  const hours = Math.floor(utcHours);
+  const minutes = Math.round((utcHours - hours) * 60);
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes));
+}
+
+function isNightAt(lat, lon, now = new Date()) {
+  const sunriseUtc = sunEventUtcHours(lat, lon, now, true);
+  const sunsetUtc = sunEventUtcHours(lat, lon, now, false);
+  if (sunriseUtc === null || sunsetUtc === null) return systemPrefersDark();
+  const sunrise = utcHoursToDate(now, sunriseUtc);
+  const sunset = utcHoursToDate(now, sunsetUtc);
+  return now < sunrise || now >= sunset;
+}
+
+function applyResolvedTheme(isDark) {
+  document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+}
+
+function resolveAutoTheme() {
+  const cached = JSON.parse(localStorage.getItem(GEO_KEY) || "null");
+  applyResolvedTheme(cached ? isNightAt(cached.lat, cached.lon) : systemPrefersDark());
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        localStorage.setItem(GEO_KEY, JSON.stringify({ lat: latitude, lon: longitude }));
+        if (currentTheme() === "auto") applyResolvedTheme(isNightAt(latitude, longitude));
+      },
+      () => {
+        /* denied or unavailable — the prefers-color-scheme fallback above already applied */
+      },
+      { maximumAge: 3600000, timeout: 5000 }
+    );
+  }
+}
+
+function currentTheme() {
+  return localStorage.getItem(THEME_KEY) || "auto";
+}
+
+function applyTheme(theme) {
+  localStorage.setItem(THEME_KEY, theme);
+  clearInterval(autoRefreshTimer);
+  if (theme === "light") applyResolvedTheme(false);
+  else if (theme === "dark") applyResolvedTheme(true);
+  else {
+    resolveAutoTheme();
+    // Re-check periodically so a page left open across an actual sunset
+    // still switches, without needing a reload.
+    autoRefreshTimer = setInterval(resolveAutoTheme, 5 * 60 * 1000);
+  }
+  if (themeIconEl) themeIconEl.textContent = { light: "☀️", dark: "🌙", auto: "🌅" }[theme];
+  if (themeToggleEl) themeToggleEl.setAttribute("aria-label", `${t("theme_aria")}: ${t("theme_" + theme)}`);
+}
+
+if (themeToggleEl) {
+  themeToggleEl.addEventListener("click", () => {
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(currentTheme()) + 1) % THEME_ORDER.length];
+    applyTheme(next);
+  });
+}
+applyTheme(currentTheme());

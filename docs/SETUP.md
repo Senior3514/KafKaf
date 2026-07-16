@@ -154,6 +154,14 @@ Nothing to install — once the backend is running (Docker or
 single static page (`kafkaf/clients/web/static/`) served directly by the
 backend, mobile-first, no build step or Node toolchain.
 
+**Language**: the עב/EN button in the header switches the whole UI between
+Hebrew (RTL) and English (LTR) — never mixed, and the choice is
+remembered (`kafkaf/clients/web/static/i18n.js`). **Theme**: the
+☀️/🌙/🌅 button cycles Light / Dark / Auto. Auto tries a real local
+sunset/sunrise calculation (via the browser's geolocation, computed
+entirely client-side — no external API call) and falls back to your OS's
+own light/dark preference if location isn't available or is denied.
+
 ## CLI / terminal
 
 ```

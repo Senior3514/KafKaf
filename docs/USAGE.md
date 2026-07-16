@@ -17,6 +17,21 @@ Every interface — web, CLI, desktop app, API — shares the same
 conversation history per `session_id`, so switching between them mid-chat
 is fine.
 
+**Prefer a native window over a browser tab?** It's a real, already-built
+desktop app, not just the web GUI in disguise — run it directly:
+```bash
+pip install -e ".[desktop]"
+kafkaf-desktop
+```
+Opens a native OS window (no browser chrome) wrapping the same backend. See
+`docs/SETUP.md#desktop-app` for pre-built executables.
+
+**Language and theme**: the web GUI's header has a language toggle
+(עב/EN — switches the whole UI, never mixed Hebrew+English) and a theme
+toggle (☀️ Light / 🌙 Dark / 🌅 Auto, where Auto follows the real local
+sunset/sunrise, not just a fixed clock time). Both choices persist across
+visits.
+
 ## Picking how it answers
 
 Three independent choices, all combinable:

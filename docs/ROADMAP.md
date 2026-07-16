@@ -310,6 +310,42 @@ depends on a big-bang release — "grow it over time."
       diversity behind it — this one's dev/CI environment always had every
       optional extra installed, so a real gap in the *documented default
       install path* survived several rounds of "everything passes."
+- [x] **Phase 15 — Another real bug from real usage, plus a genuine i18n
+      pass**: the same live-testing user hit a second real bug once
+      phase 14 unblocked them — `/chat` only caught `RuntimeError`, so any
+      other failure (Ollama unreachable, model not pulled, a network
+      error) propagated as an unhandled exception, which FastAPI turns
+      into a raw HTML 500 page; the web GUI always calls
+      `response.json()`, so the failure showed up client-side as a
+      confusing `Unexpected token 'I', "Internal S"... is not valid JSON`
+      instead of a real error message. Fixed with a broad `except
+      Exception` in `core/api.py`'s `/chat` returning a proper JSON 502
+      with a helpful message ("is Ollama running and is the model
+      pulled?"), covered by a test that actually raises inside a fake
+      brain and asserts a parseable JSON error comes back. Live-verified
+      with Playwright against the real running server (not just unit
+      tests): the exact "Unexpected token" failure mode is now gone.
+
+      Also shipped, from the same conversation's UI feedback: a real
+      language toggle (`kafkaf/clients/web/static/i18n.js`) — Hebrew and
+      English are no longer mixed in the same view; the whole UI (labels,
+      placeholders, aria-labels, `dir`/`lang` on `<html>`) switches
+      together via one button, choice persisted. A light/dark/auto theme
+      toggle, where **auto is a real local sunset/sunrise calculation**
+      (the well-known "Sunrise Equation" from the 1990 Almanac for
+      Computers, computed client-side from `navigator.geolocation` — no
+      external API — falling back to `prefers-color-scheme` if location
+      is unavailable/denied), not just a rebrand of the OS preference.
+      Found and fixed in the process: `.bubble.user`/`.bubble.assistant`'s
+      chat-tail corners were hardcoded to physical `border-bottom-left-
+      radius`/`-right-radius`, which is only correct in one text direction
+      — switched to logical properties (`border-end-end-radius`/`-start-
+      radius`) so the tail stays on the right corner in both RTL and LTR
+      automatically. All of it live-verified with a real headless-browser
+      session against the real server: default Hebrew/RTL, the language
+      toggle actually flipping `dir`/`lang`/labels, bubble alignment
+      correct on both sides, and light vs. dark mode producing genuinely
+      different rendered colors — not just asserted, screenshotted.
 
 ## Deferred / future work
 

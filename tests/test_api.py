@@ -58,8 +58,11 @@ def test_web_gui_static_assets():
     with TestClient(app) as client:
         js = client.get("/static/app.js")
         css = client.get("/static/style.css")
+        i18n = client.get("/static/i18n.js")
     assert js.status_code == 200
     assert css.status_code == 200
+    assert i18n.status_code == 200
+    assert "TRANSLATIONS" in i18n.text
 
 
 def test_pwa_manifest_and_icons_served():
@@ -195,6 +198,29 @@ def test_chat_skills_allowed_at_assisted_level(monkeypatch):
             "/chat", json={"message": "hi", "session_id": "s-assisted", "skills": True}
         )
     assert response.status_code == 200
+
+
+def test_chat_unreachable_brain_returns_clean_json_error(monkeypatch):
+    """A brain call failing for any reason (Ollama down, model not pulled,
+    a network error, ...) must come back as a JSON error the web GUI can
+    parse — not an unhandled exception turning into a raw framework 500
+    HTML page, which broke `response.json()` client-side with a confusing
+    "Unexpected token" instead of showing the real problem."""
+
+    class UnreachableBrain(Brain):
+        name = "unreachable"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            raise ConnectionError("Connection refused")
+
+    monkeypatch.setattr(council, "_default_brain", UnreachableBrain())
+
+    with TestClient(app) as client:
+        response = client.post("/chat", json={"message": "hi", "session_id": "s-down"})
+    assert response.status_code == 502
+    body = response.json()
+    assert "detail" in body
+    assert "Connection refused" in body["detail"]
 
 
 def test_chat_council_and_skills_combine(monkeypatch):

@@ -93,6 +93,17 @@ async def chat(request: ChatRequest) -> ChatResponse:
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        # A brain call failing (Ollama unreachable, model not pulled, a
+        # network error, ...) must not surface as a raw framework 500 page —
+        # the web GUI expects JSON back from every response, success or
+        # failure, and an HTML error page fails client-side JSON parsing
+        # with a confusing "Unexpected token" instead of the real problem.
+        raise HTTPException(
+            status_code=502,
+            detail=f"Couldn't get a reply from the model ({exc}). Is Ollama running "
+            "and is the model pulled? See docs/USAGE.md#common-day-to-day-commands.",
+        ) from exc
 
     return ChatResponse(reply=reply, session_id=request.session_id)
 
