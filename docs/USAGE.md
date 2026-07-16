@@ -36,7 +36,14 @@ Python installed at all.
 (עב/EN — switches the whole UI, never mixed Hebrew+English) and a theme
 toggle (☀️ Light / 🌙 Dark / 🌅 Auto, where Auto follows the real local
 sunset/sunrise, not just a fixed clock time). Both choices persist across
-visits.
+visits. Auto only ever asks for your location once you explicitly pick it —
+never automatically on page load.
+
+**The Control Panel** (the sliders icon in the header) is the "what is this
+actually allowed to do, and what has it learned" view, live, in the app
+itself: current autonomy level, your own model's training progress, recent
+activity — and the **Teach & grow** section described below, so growing your
+own model doesn't require MCP or the CLI at all if you don't want it to.
 
 ## Picking how it answers
 
@@ -58,11 +65,23 @@ Three independent choices, all combinable:
 ## Teaching your own model
 
 Your own model (`brain: own`) starts knowing nothing — it only gets
-better from what you put into it. Two ways, and they compose:
+better from what you put into it. This is the actual point of KafKaf, not
+a side feature — three ways to grow it, and they all compose:
+
+**From the web GUI, no setup required** — open the Control Panel (sliders
+icon) → **Teach & grow**: type a topic and a fact and hit "Teach this fact"
+to store it directly, or give just a topic and hit "Ask the main model to
+explain & teach it" to have your default chat model (Ollama) explain the
+topic and capture that as training data — the same `distill_from_teacher`
+primitive MCP uses, reachable without any extra install. A "Training steps"
+field + "Train now" button actually trains on everything taught so far;
+if the optional `train` extra (`torch`) isn't installed yet, it says so
+clearly instead of failing oddly — `pip install -e ".[train]"` and restart.
 
 **Manually, via MCP** (Claude Desktop/Code) — `teach_fact`,
-`distill_from_teacher`, `train_step`, `status`. See
-`docs/SETUP.md#own-model-enrichment-mcp-server`.
+`distill_from_teacher`, `train_step`, `status`. Same underlying primitives
+as the Control Panel above, useful when you want Claude itself picking what
+to teach. See `docs/SETUP.md#own-model-enrichment-mcp-server`.
 
 **Automatically, via autopilot** — runs by default at the `autonomous`
 autonomy level (see below), cycling a curriculum through a teacher model

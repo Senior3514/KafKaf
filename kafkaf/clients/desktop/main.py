@@ -42,7 +42,7 @@ def main() -> None:
                 break
             time.sleep(0.2)
 
-    webview.create_window("KafKaf (כףכף)", f"http://{HOST}:{port}", width=420, height=760)
+    webview.create_window("KafKaf", f"http://{HOST}:{port}", width=420, height=760)
     webview.start()
 
 

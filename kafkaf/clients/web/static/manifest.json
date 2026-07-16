@@ -1,7 +1,7 @@
 {
   "name": "KafKaf",
   "short_name": "KafKaf",
-  "description": "כפכף — free, private, self-hosted AI platform",
+  "description": "KafKaf — free, private, self-hosted AI platform",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
