@@ -285,6 +285,31 @@ depends on a big-bang release — "grow it over time."
       CONDUCT.md` ships alongside `CONTRIBUTING.md` — standard community
       health coverage for a public repo, adapted to this project's actual
       voice rather than dropped in unedited.
+- [x] **Phase 14 — A real bug, found by a real user, on a real machine**:
+      `kafkaf-server` couldn't start with only `pip install -e ".[dev]"` —
+      it required `torch` even though `torch` is explicitly a `[train]`-
+      only extra everywhere else in this project (the Dockerfile's backend
+      image is deliberately built without it; `enrichment/service.py`
+      already lazy-imports `kafkaf.model.train` specifically to keep torch
+      optional). The bug: `core/brains/registry.py` imported `OwnModelBrain`
+      — which imports `kafkaf.model.gpt`, which imports `torch` — at module
+      level, so *any* import of the registry (which `core/api.py` always
+      does) pulled in torch unconditionally. This had been live and
+      undetected through every "full verification pass" so far, because
+      every test/dev environment in this project's own history happened to
+      have `[train]` installed already. Found because a real user, on a
+      bare Windows machine, ran the documented non-Docker path exactly as
+      written and hit `ModuleNotFoundError: No module named 'torch'`.
+      Fixed by moving the `OwnModelBrain` import into `get_brain()`'s
+      `"own"` branch (matching the already-established lazy-import pattern
+      in `enrichment/service.py`), plus a regression test
+      (`test_registry_and_api_import_without_torch_installed`) that
+      actually blocks `torch` from being importable and confirms
+      `core.api` and every non-`"own"` brain still work. The lesson worth
+      keeping: a verification pass is only as good as the environment
+      diversity behind it — this one's dev/CI environment always had every
+      optional extra installed, so a real gap in the *documented default
+      install path* survived several rounds of "everything passes."
 
 ## Deferred / future work
 

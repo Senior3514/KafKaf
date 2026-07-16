@@ -63,6 +63,14 @@ code — these patterns are consistent on purpose, not incidental:
   in-memory fixed-window counter, not Redis. If a few dozen lines of
   stdlib does the job, prefer that over a new dependency — and if you do
   need one, say why in the PR description.
+- **Optional extras (`torch`, `mcp`, `pywebview`) stay lazily imported.**
+  `enrichment/service.py`'s `train_step` import and `brains/registry.py`'s
+  `OwnModelBrain` import are both local (inside the function that actually
+  needs them), specifically so `pip install -e ".[dev]"` alone is enough
+  to run `kafkaf-server` and every brain except `"own"`. A module-level
+  `import torch` anywhere reachable from `core/api.py` breaks that
+  guarantee — this exact bug shipped once (docs/ROADMAP.md phase 14) and
+  is now covered by a regression test that actually blocks the import.
 - **No silent capability changes.** Anything that changes what KafKaf can
   do without a human reviewing each step (new skills, autopilot behavior,
   default autonomy) goes through `core/autonomy.py`'s tiers and gets
