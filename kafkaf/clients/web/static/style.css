@@ -26,6 +26,35 @@
   }
 }
 
+/* Manual light/dark/auto toggle (app.js) overrides the OS preference in
+   both directions — prefers-color-scheme above only sets the default for
+   "auto" before JS has run or when geolocation-based sunset is unavailable. */
+:root[data-theme="dark"] {
+  --bg: #121214;
+  --surface: #1c1c1f;
+  --text: #f2f2f2;
+  --muted: #9a9a9f;
+  --border: #2c2c30;
+  --accent: #5b8dfb;
+  --bubble-user: #5b8dfb;
+  --bubble-user-text: #0b0b0c;
+  --bubble-assistant: #1c1c1f;
+  --error: #ff6b60;
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --border: #e2e2e5;
+  --accent: #2f6fed;
+  --bubble-user: #2f6fed;
+  --bubble-user-text: #ffffff;
+  --bubble-assistant: #ffffff;
+  --error: #b3261e;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -116,6 +145,28 @@ body {
   accent-color: var(--accent);
 }
 
+.icon-btn {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lang-btn {
+  font-weight: 600;
+  font-size: 0.75rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
 .chat {
   flex: 1;
   overflow-y: auto;
@@ -138,14 +189,18 @@ body {
   align-self: flex-end;
   background: var(--bubble-user);
   color: var(--bubble-user-text);
-  border-bottom-left-radius: 4px;
+  /* Logical (not physical left/right) so the "tail" corner stays on this
+     bubble's own outer edge in both RTL (Hebrew) and LTR (English) —
+     border-bottom-left-radius would flatten the wrong corner once dir
+     flips. */
+  border-end-end-radius: 4px;
 }
 
 .bubble.assistant {
   align-self: flex-start;
   background: var(--bubble-assistant);
   border: 1px solid var(--border);
-  border-bottom-right-radius: 4px;
+  border-end-start-radius: 4px;
 }
 
 .bubble.error {

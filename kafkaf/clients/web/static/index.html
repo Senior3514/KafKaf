@@ -16,41 +16,47 @@
 <body>
   <header class="topbar">
     <div class="brand">כףכף <span class="brand-sub">KafKaf</span></div>
-    <div class="model-controls" role="group" aria-label="הגדרות שיחה">
-      <select id="persona-select" class="brain-select" aria-label="פרסונה">
-        <option value="default">Kaf (ברירת מחדל)</option>
+    <div class="model-controls" role="group" data-i18n-aria="settings_group">
+      <select id="persona-select" class="brain-select" data-i18n-aria="persona_aria">
+        <option value="default" data-i18n="persona_default">Kaf (ברירת מחדל)</option>
         <option value="researcher">Researcher</option>
         <option value="coach">Coach</option>
       </select>
-      <select id="brain-select" class="brain-select" aria-label="מודל">
-        <option value="">מודל ברירת מחדל (Ollama)</option>
-        <option value="own">המודל שלנו (גדל עם הזמן)</option>
+      <select id="brain-select" class="brain-select" data-i18n-aria="brain_aria">
+        <option value="" data-i18n="brain_default">מודל ברירת מחדל (Ollama)</option>
+        <option value="own" data-i18n="brain_own">המודל שלנו (גדל עם הזמן)</option>
       </select>
       <label class="council-toggle">
         <input type="checkbox" id="council-toggle" />
-        <span>מועצת מוחות</span>
+        <span data-i18n="council_label">מועצת מוחות</span>
       </label>
       <label class="council-toggle">
         <input type="checkbox" id="skills-toggle" />
-        <span>סקילים</span>
+        <span data-i18n="skills_label">סקילים</span>
       </label>
+      <button type="button" id="theme-toggle" class="icon-btn" data-i18n-aria="theme_aria">
+        <span id="theme-icon" aria-hidden="true">🌓</span>
+      </button>
+      <button type="button" id="lang-toggle" class="icon-btn lang-btn">EN</button>
     </div>
   </header>
 
   <main id="chat" class="chat" role="log" aria-live="polite"></main>
 
-  <form id="composer" class="composer" aria-label="שליחת הודעה">
-    <label for="message" class="visually-hidden">הודעה</label>
+  <form id="composer" class="composer" data-i18n-aria="composer_aria">
+    <label for="message" class="visually-hidden" data-i18n="message_label">הודעה</label>
     <textarea
       id="message"
       class="message-input"
+      data-i18n-placeholder="message_placeholder"
       placeholder="כתבו הודעה..."
       rows="1"
       autofocus
     ></textarea>
-    <button type="submit" class="send-btn" aria-label="שליחה">➤</button>
+    <button type="submit" class="send-btn" data-i18n-aria="send_aria">➤</button>
   </form>
 
+  <script src="/static/i18n.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
