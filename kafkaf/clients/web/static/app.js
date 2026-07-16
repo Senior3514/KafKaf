@@ -275,19 +275,44 @@ function applyResolvedTheme(isDark) {
   document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
 }
 
+// Whether "auto" is currently using a real geolocation-based sunset, or
+// silently fell back to the OS's light/dark preference (denied/unavailable
+// location) — surfaced in the theme button's tooltip below instead of
+// failing silently, since "sunset mode doesn't work" is indistinguishable
+// from "it works but location was never granted" without this.
+let autoUsingRealLocation = false;
+
+function updateThemeButtonLabel() {
+  if (!themeToggleEl) return;
+  const theme = currentTheme();
+  let key = "theme_" + theme;
+  if (theme === "auto") key = autoUsingRealLocation ? "theme_auto_real" : "theme_auto_fallback";
+  themeToggleEl.setAttribute("aria-label", `${t("theme_aria")}: ${t(key)}`);
+  themeToggleEl.setAttribute("title", t(key));
+}
+
 function resolveAutoTheme() {
   const cached = JSON.parse(localStorage.getItem(GEO_KEY) || "null");
+  autoUsingRealLocation = Boolean(cached);
   applyResolvedTheme(cached ? isNightAt(cached.lat, cached.lon) : systemPrefersDark());
+  updateThemeButtonLabel();
 
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         localStorage.setItem(GEO_KEY, JSON.stringify({ lat: latitude, lon: longitude }));
-        if (currentTheme() === "auto") applyResolvedTheme(isNightAt(latitude, longitude));
+        autoUsingRealLocation = true;
+        if (currentTheme() === "auto") {
+          applyResolvedTheme(isNightAt(latitude, longitude));
+          updateThemeButtonLabel();
+        }
       },
       () => {
-        /* denied or unavailable — the prefers-color-scheme fallback above already applied */
+        // denied or unavailable — the prefers-color-scheme fallback above
+        // already applied; make that explicit rather than silent.
+        autoUsingRealLocation = false;
+        updateThemeButtonLabel();
       },
       { maximumAge: 3600000, timeout: 5000 }
     );
@@ -314,7 +339,9 @@ function applyTheme(theme) {
     autoRefreshTimer = setInterval(resolveAutoTheme, 5 * 60 * 1000);
   }
   if (themeIconEl) themeIconEl.textContent = { light: "☀️", dark: "🌙", auto: "🌅" }[theme];
-  if (themeToggleEl) themeToggleEl.setAttribute("aria-label", `${t("theme_aria")}: ${t("theme_" + theme)}`);
+  // For "auto", resolveAutoTheme() above already set a more specific
+  // real-location-vs-fallback label — don't overwrite it with a generic one.
+  if (theme !== "auto") updateThemeButtonLabel();
 }
 
 if (themeToggleEl) {
@@ -323,6 +350,7 @@ if (themeToggleEl) {
     applyTheme(next);
   });
 }
+document.addEventListener("kafkaf-lang-changed", updateThemeButtonLabel);
 applyTheme(currentTheme() || (systemPrefersDark() ? "dark" : "light"));
 
 // ---------------------------------------------------------------------

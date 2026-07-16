@@ -401,7 +401,7 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The fourteen skills that ship today, all working with no API key required:
+The nineteen skills that ship today, all working with no API key required:
 
 | Skill | What it does |
 |---|---|
@@ -419,6 +419,11 @@ The fourteen skills that ship today, all working with no API key required:
 | `system_info` | Read-only snapshot of the machine KafKaf itself runs on (OS, Python, CPU, disk) |
 | `journal` | A private, timestamped notes log confined to the sandboxed workspace |
 | `own_model_status` | How much the own model has learned so far — corpus size and last training run |
+| `password_generator` | A cryptographically secure random password (Python's `secrets`, never a weak PRNG) |
+| `text_diff` | Line-by-line differences between two pieces of text |
+| `hash_text` | md5/sha1/sha256 of a piece of text |
+| `random_pick` | Dice rolls or picking randomly from a list of options |
+| `text_stats` | Word/character/sentence count and estimated reading time |
 
 The sandboxed workspace for the `files`, `document_search`, and `journal`
 skills defaults to `./workspace` — override with
