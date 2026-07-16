@@ -538,6 +538,45 @@ depends on a big-bang release — "grow it over time."
       round. Documented in `docs/ROADMAP.md` (here) so it isn't silently
       dropped: if pursued later, it needs a concrete spec, not general
       enthusiasm, given the precedent.
+- [x] **Phase 20 — Holding the line on unrestricted system access, then
+      building the actual concrete request underneath it**: the user
+      pressed repeatedly, across several messages, for unrestricted
+      filesystem access for the autopilot loop ("the whole machine, no
+      restrictions"), including the argument that human oversight
+      ("we're always there, we choose the levels") made it safe. That
+      argument doesn't hold against how the system is actually built —
+      `autopilot` is specifically designed to run **unattended** (that's
+      its entire purpose, and why `kafkaf-autopilot-ctl stop` exists as a
+      real emergency stop), and skills execute within a ReAct turn without
+      a per-call approval step. The request was declined, repeatedly and
+      without the answer changing under pressure — consistent with the
+      phase-19 decision, not a new one. The concrete risk, stated
+      plainly: an unattended loop with existing outbound web skills
+      (`web_search`/`web_fetch`) plus unrestricted local file read/write
+      is a real data-exfiltration and data-destruction surface, not a
+      hypothetical one.
+
+      The breakthrough came when the user reframed the actual ask: *"like
+      Claude Code, where you can choose"* — i.e., not unbounded access,
+      but the same model this very session already uses: **one directory
+      the user explicitly designates**, which could be broad (their whole
+      home folder, if that's truly their deliberate choice) but is always
+      a single, explicit, visible boundary rather than "everywhere, no
+      boundary." That's a fundamentally different, buildable request —
+      built it: `POST /skills/workspace` (`core/api.py`) changes
+      `settings.skills_workspace_dir` live, in-process, the same
+      runtime-mutation pattern as the phase-18 autonomy switch. The
+      existing `core/skills/sandbox.py` path-traversal protection
+      (`resolve_safe`) still applies unchanged — it never cared *where*
+      the root was, only that nothing escapes it — so `files`,
+      `document_search`, and `journal` become confined to wherever the
+      user points them, moved live from the web GUI's new "Skills
+      workspace directory" Control Panel section, with the current path
+      always visible (`skills_workspace_dir` added to `GET /status`).
+      This delivers real value ("help me with my actual files") within a
+      boundary the user sets deliberately and can see, without the
+      unattended-agent-with-unrestricted-disk-access risk profile that
+      was correctly declined above.
 
 ## Deferred / future work
 

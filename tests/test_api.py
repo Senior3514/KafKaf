@@ -224,6 +224,30 @@ def test_set_autonomy_rejects_unknown_level():
     assert "godmode" in response.json()["detail"]
 
 
+def test_set_skills_workspace_changes_the_sandbox_root(monkeypatch, tmp_path):
+    """The 'pick one directory, like Claude Code's cwd' model — this must
+    move the sandbox root live, and files/document_search/journal must
+    then actually operate inside the newly-chosen directory, not the old
+    one."""
+    new_root = tmp_path / "chosen-folder"
+    with TestClient(app) as client:
+        response = client.post("/skills/workspace", json={"path": str(new_root)})
+    assert response.status_code == 200
+    assert response.json()["skills_workspace_dir"] == str(new_root)
+    assert new_root.is_dir()
+
+    from kafkaf.core.skills.sandbox import workspace_root
+
+    assert workspace_root() == new_root
+
+
+def test_set_skills_workspace_reports_status(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.config.settings.skills_workspace_dir", str(tmp_path))
+    with TestClient(app) as client:
+        response = client.get("/status")
+    assert response.json()["skills_workspace_dir"] == str(tmp_path)
+
+
 def test_status_endpoint_returns_autonomy_and_own_model_state():
     """Backs the web GUI's Control Panel — one call for "what is this
     allowed to do, and what has the own model actually learned so far"."""

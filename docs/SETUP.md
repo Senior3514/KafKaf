@@ -420,10 +420,16 @@ The fourteen skills that ship today, all working with no API key required:
 | `journal` | A private, timestamped notes log confined to the sandboxed workspace |
 | `own_model_status` | How much the own model has learned so far — corpus size and last training run |
 
-The sandboxed workspace for the `files` and `document_search` skills
-defaults to `./workspace` — override with `KAFKAF_SKILLS_WORKSPACE_DIR`.
-Paths that try to escape it (`../..`, absolute paths outside the workspace)
-are rejected. `document_search` is a small, dependency-free "RAG-lite":
+The sandboxed workspace for the `files`, `document_search`, and `journal`
+skills defaults to `./workspace` — override with
+`KAFKAF_SKILLS_WORKSPACE_DIR`, or point it at any real directory you
+choose live from the web GUI's Control Panel ("Skills workspace
+directory") — the same "you pick one working directory" model as Claude
+Code's own working directory, not unrestricted access to the whole
+machine. Whatever directory is set becomes the sandbox root; paths that
+try to escape it (`../..`, absolute paths outside it) are still rejected
+no matter where the root points. `document_search` is a small,
+dependency-free "RAG-lite":
 it chunks `.txt`/`.md`/`.rst`/`.csv`/`.json`/`.log` files by paragraph and
 ranks chunks by keyword overlap — no vector DB or embeddings model, in
 keeping with the project's minimal-dependency philosophy (the same spirit

@@ -75,6 +75,10 @@ class AutonomyRequest(BaseModel):
     level: str
 
 
+class WorkspaceRequest(BaseModel):
+    path: str
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -184,6 +188,28 @@ async def set_autonomy(request: AutonomyRequest) -> dict:
     }
 
 
+@app.post("/skills/workspace")
+async def set_skills_workspace(request: WorkspaceRequest) -> dict:
+    """Point the filesystem-touching skills (files, document_search,
+    journal) at a real directory the user explicitly chooses — the same
+    "you pick one working directory" model as Claude Code's own cwd, not
+    unrestricted access to the whole machine. Whatever directory is set
+    here becomes the sandbox root: kafkaf/core/skills/sandbox.py still
+    rejects any path that tries to escape it (../, absolute paths outside
+    it) — the boundary just moves to wherever this points, deliberately
+    and visibly, instead of being fixed to the app-local ./workspace."""
+    try:
+        resolved = Path(request.path).expanduser().resolve()
+        resolved.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Can't use {request.path!r} as a workspace: {exc}"
+        ) from exc
+
+    settings.skills_workspace_dir = str(resolved)
+    return {"skills_workspace_dir": settings.skills_workspace_dir}
+
+
 @app.get("/status")
 async def status() -> dict:
     """Everything a Control Panel needs in one call: autonomy level, own-model
@@ -203,6 +229,7 @@ async def status() -> dict:
         },
         "own_model": enrichment_service.get_status(),
         "default_teacher": f"ollama:{settings.ollama_model}",
+        "skills_workspace_dir": settings.skills_workspace_dir,
     }
 
 
