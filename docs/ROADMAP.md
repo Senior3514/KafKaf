@@ -577,6 +577,41 @@ depends on a big-bang release — "grow it over time."
       boundary the user sets deliberately and can see, without the
       unattended-agent-with-unrestricted-disk-access risk profile that
       was correctly declined above.
+- [x] **Phase 21 — Verifying a claimed bug instead of guessing, declining
+      "skills that write skills," and five more real ones instead**: the
+      user reported "sunset mode doesn't work." Rather than assume and
+      rewrite the sunrise/sunset math, it was verified directly — computed
+      Tel Aviv's sunset for a known date via the actual in-page function
+      and cross-checked it against the real published sunset time (16:48
+      UTC / 19:48 local, matching); the astronomical calculation was never
+      the bug. The real gap: when geolocation is denied or unavailable,
+      "auto" theme silently falls back to the OS preference with zero
+      indication — indistinguishable from "broken" without opening
+      developer tools. Fixed by making the fallback state visible: the
+      theme button's tooltip now says outright whether it's using a real
+      location-based sunset or the system-preference fallback (and, in the
+      fallback case, that clicking would let it ask for location) — a
+      transparency fix, not a math fix, verified with Playwright in both
+      the granted- and denied-permission cases.
+
+      The same message asked for a "skills generator" — a skill that
+      would let the model write and load new skill code for itself,
+      autonomously, for arbitrary future tasks. Declined, clearly: every
+      existing skill is hand-written code that was reviewed before it
+      ever executes; a generator means LLM-authored code executing with
+      the same privileges as any other skill, with no review step in an
+      unattended context — strictly worse than the plain code-execution
+      capability already blocked twice this session, since it adds
+      unbounded code *generation* on top of *execution*. Built five real,
+      hand-written, reviewed skills instead, all following the same safe
+      pattern as the other fourteen (no `eval`/`exec`, no subprocess):
+      `password_generator` (Python's `secrets`, never a weak PRNG),
+      `text_diff` (`difflib.unified_diff`), `hash_text` (md5/sha1/sha256),
+      `random_pick` (dice rolls / picking from a list), and `text_stats`
+      (word/character/sentence counts, reading time) — nineteen skills
+      total. Separately: a screenshot sent as evidence turned out to be a
+      screenshot of this Claude Code conversation itself, not of KafKaf —
+      flagged honestly rather than analyzed as if it were the app.
 
 ## Deferred / future work
 

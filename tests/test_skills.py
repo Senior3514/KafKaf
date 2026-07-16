@@ -6,11 +6,16 @@ from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
 from kafkaf.core.skills.document_search import DocumentSearchSkill
 from kafkaf.core.skills.files import FilesSkill
+from kafkaf.core.skills.hash_text import HashTextSkill
 from kafkaf.core.skills.journal import JournalSkill
 from kafkaf.core.skills.memory_search import MemorySearchSkill
 from kafkaf.core.skills.own_model_status import OwnModelStatusSkill
+from kafkaf.core.skills.password_generator import PasswordGeneratorSkill
+from kafkaf.core.skills.random_pick import RandomPickSkill
 from kafkaf.core.skills.reminders import RemindersSkill
 from kafkaf.core.skills.system_info import SystemInfoSkill
+from kafkaf.core.skills.text_diff import TextDiffSkill
+from kafkaf.core.skills.text_stats import TextStatsSkill
 from kafkaf.core.skills.unit_convert import UnitConvertSkill
 
 
@@ -226,3 +231,101 @@ class TestOwnModelStatus:
         enrichment_store.save_example("fact", "KafKaf", "about kafkaf", "KafKaf is private.")
         result = await OwnModelStatusSkill().run("")
         assert "corpus: 1 examples" in result
+
+
+class TestPasswordGenerator:
+    @pytest.mark.asyncio
+    async def test_default_length(self):
+        result = await PasswordGeneratorSkill().run("")
+        assert len(result) == 20
+
+    @pytest.mark.asyncio
+    async def test_custom_length(self):
+        result = await PasswordGeneratorSkill().run("32")
+        assert len(result) == 32
+
+    @pytest.mark.asyncio
+    async def test_two_calls_differ(self):
+        a = await PasswordGeneratorSkill().run("16")
+        b = await PasswordGeneratorSkill().run("16")
+        assert a != b
+
+    @pytest.mark.asyncio
+    async def test_out_of_range_error(self):
+        result = await PasswordGeneratorSkill().run("4")
+        assert result.startswith("error:")
+
+    @pytest.mark.asyncio
+    async def test_non_numeric_error(self):
+        result = await PasswordGeneratorSkill().run("abc")
+        assert result.startswith("error:")
+
+
+class TestTextDiff:
+    @pytest.mark.asyncio
+    async def test_finds_a_difference(self):
+        result = await TextDiffSkill().run("hello world\n---\nhello there")
+        assert "hello world" in result
+        assert "hello there" in result
+
+    @pytest.mark.asyncio
+    async def test_identical_text_no_diff(self):
+        result = await TextDiffSkill().run("same\n---\nsame")
+        assert result == "no differences"
+
+    @pytest.mark.asyncio
+    async def test_bad_format_error(self):
+        result = await TextDiffSkill().run("no separator here")
+        assert result.startswith("error:")
+
+
+class TestHashText:
+    @pytest.mark.asyncio
+    async def test_default_sha256(self):
+        result = await HashTextSkill().run("hello")
+        assert result == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+
+    @pytest.mark.asyncio
+    async def test_explicit_md5(self):
+        result = await HashTextSkill().run("md5 hello")
+        assert result == "5d41402abc4b2a76b9719d911017c592"
+
+    @pytest.mark.asyncio
+    async def test_empty_error(self):
+        result = await HashTextSkill().run("")
+        assert result.startswith("error:")
+
+
+class TestRandomPick:
+    @pytest.mark.asyncio
+    async def test_picks_from_options(self):
+        result = await RandomPickSkill().run("pizza, sushi, tacos")
+        assert result in ("pizza", "sushi", "tacos")
+
+    @pytest.mark.asyncio
+    async def test_roll_dice(self):
+        result = await RandomPickSkill().run("roll 2d6")
+        assert "total" in result
+
+    @pytest.mark.asyncio
+    async def test_bad_roll_format(self):
+        result = await RandomPickSkill().run("roll xyz")
+        assert result.startswith("error:")
+
+    @pytest.mark.asyncio
+    async def test_single_option_error(self):
+        result = await RandomPickSkill().run("onlyone")
+        assert result.startswith("error:")
+
+
+class TestTextStats:
+    @pytest.mark.asyncio
+    async def test_counts(self):
+        result = await TextStatsSkill().run("Hello world. How are you?")
+        assert "words: 5" in result
+        assert "sentences: 2" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_error(self):
+        result = await TextStatsSkill().run("")
+        assert result.startswith("error:")
