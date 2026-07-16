@@ -409,9 +409,47 @@ function renderControlPanel(statusData, auditEvents) {
       </div>
       <p id="growth-status" class="control-hint" aria-live="polite"></p>
     </div>
+    <div class="control-section">
+      <h3>${t("workspace_heading")}</h3>
+      <p class="control-hint">${t("workspace_intro")}</p>
+      <label class="growth-label">${t("workspace_current_label")}</label>
+      <p class="control-hint" style="word-break: break-all;">${statusData.skills_workspace_dir}</p>
+      <input id="workspace-input" class="growth-input" type="text" placeholder="${t("workspace_input_placeholder")}" />
+      <div class="growth-actions">
+        <button type="button" id="workspace-set-btn" class="growth-btn">${t("workspace_set_btn")}</button>
+      </div>
+      <p id="workspace-status" class="control-hint" aria-live="polite"></p>
+    </div>
   `;
   wireGrowPanel(statusData.default_teacher);
   wireAutonomyButtons();
+  wireWorkspacePanel();
+}
+
+function wireWorkspacePanel() {
+  const inputEl = document.getElementById("workspace-input");
+  const btnEl = document.getElementById("workspace-set-btn");
+  const statusEl = document.getElementById("workspace-status");
+
+  btnEl.addEventListener("click", async () => {
+    const path = inputEl.value.trim();
+    if (!path) return;
+    btnEl.disabled = true;
+    statusEl.textContent = t("growth_working");
+    try {
+      const response = await fetch("/skills/workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `${response.status}`);
+      await loadControlPanel();
+    } catch (err) {
+      statusEl.textContent = `${t("growth_error")}${err.message}`;
+      btnEl.disabled = false;
+    }
+  });
 }
 
 function wireAutonomyButtons() {

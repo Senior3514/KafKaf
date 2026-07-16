@@ -73,6 +73,12 @@ const TRANSLATIONS = {
     growth_train_ok: "אימון הושלם.",
     growth_error: "משהו נכשל: ",
     growth_missing_fields: "נא למלא נושא (ועובדה, אם מלמדים ישירות)",
+    workspace_heading: "תיקיית עבודה לסקילים",
+    workspace_intro: "הסקילים files, document_search ו-journal יכולים לגעת רק בתיקייה הזו — בדיוק כמו תיקיית עבודה ב-Claude Code. שינוי כאן חי ומיידי.",
+    workspace_current_label: "תיקייה נוכחית",
+    workspace_input_placeholder: "לדוגמה: C:\\Users\\name\\Desktop",
+    workspace_set_btn: "הגדר תיקייה",
+    workspace_set_ok: "התיקייה עודכנה.",
   },
   en: {
     persona_default: "Kaf (default)",
@@ -145,6 +151,12 @@ const TRANSLATIONS = {
     growth_train_ok: "Training complete.",
     growth_error: "Something failed: ",
     growth_missing_fields: "Please fill in a topic (and a fact, for direct teaching)",
+    workspace_heading: "Skills workspace directory",
+    workspace_intro: "The files, document_search, and journal skills can only touch this directory — exactly like a working directory in Claude Code. Changing it here is live and immediate.",
+    workspace_current_label: "Current directory",
+    workspace_input_placeholder: "e.g. C:\\Users\\name\\Desktop",
+    workspace_set_btn: "Set directory",
+    workspace_set_ok: "Directory updated.",
   },
 };
 
