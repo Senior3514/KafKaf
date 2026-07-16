@@ -71,6 +71,10 @@ class TrainRequest(BaseModel):
     steps: int = 50
 
 
+class AutonomyRequest(BaseModel):
+    level: str
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -145,6 +149,27 @@ async def autonomy_status() -> dict:
     }
 
 
+@app.post("/autonomy")
+async def set_autonomy(request: AutonomyRequest) -> dict:
+    """Change the autonomy level for this running process immediately — no
+    restart needed for /chat's skills gate to reflect it. Honest about
+    scope: this affects *this* process only. A separately-running autopilot
+    container (Docker) reads its own environment at startup and is not
+    touched by this; persisting the choice across a restart of this process
+    still needs KAFKAF_AUTONOMY_LEVEL set in the environment/.env file."""
+    if request.level not in autonomy.TIERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown autonomy level {request.level!r}. Must be one of {autonomy.TIERS}.",
+        )
+    settings.autonomy_level = request.level
+    return {
+        "level": settings.autonomy_level,
+        "description": autonomy.DESCRIPTIONS[settings.autonomy_level],
+        "skills_allowed": autonomy.skills_allowed(),
+    }
+
+
 @app.get("/status")
 async def status() -> dict:
     """Everything a Control Panel needs in one call: autonomy level, own-model
@@ -203,6 +228,15 @@ async def enrichment_train(request: TrainRequest) -> dict:
             detail="Training needs the optional 'train' extra: run "
             'pip install -e ".[train]" (installs torch), then restart the server.',
         ) from exc
+    except Exception as exc:
+        # Any other training failure (corpus too small for the configured
+        # block_size, a corrupt checkpoint, ...) must still come back as a
+        # JSON error the web GUI can parse — same reasoning as /chat's
+        # broad handler. Caught by a real ValueError during live testing:
+        # training with too little taught data raised past a narrow
+        # ModuleNotFoundError-only catch straight into a raw framework 500.
+        reason = str(exc) or type(exc).__name__
+        raise HTTPException(status_code=400, detail=f"Training failed ({reason}).") from exc
 
 
 @app.get("/", include_in_schema=False)

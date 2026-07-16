@@ -103,6 +103,18 @@ narrower override also exists — `--no-autopilot` keeps `autonomous`'s
 skills enabled but skips just the autopilot container, if you want tools
 without the unattended loop specifically.
 
+**Change it live, no restart, from the web GUI** — the Control Panel's
+Autonomy section has three buttons (Observe / Assisted / Autonomous);
+picking one calls `POST /autonomy` and takes effect immediately for that
+running process, including disabling the Skills checkbox in real time if
+the new level doesn't allow it — the checkbox never contradicts what
+`/chat` will actually do. Scope, honestly: this changes *this process*
+only. It does not reach a separately-running `autopilot` Docker container
+(that reads its own environment at startup), and it does not survive a
+restart of this process unless `KAFKAF_AUTONOMY_LEVEL` is also updated —
+use the live switch for "try a different level right now," and the env
+var / `--autonomy` flag for "this is the level on every future start."
+
 **Why a dial, not just more flags:** every capability KafKaf gains that a
 human doesn't review turn-by-turn (autopilot's unattended cycles, in
 particular) is a materially different kind of risk than one a human

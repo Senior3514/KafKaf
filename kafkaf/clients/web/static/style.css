@@ -372,6 +372,35 @@ body {
   border-top: 1px solid var(--border);
 }
 
+.autonomy-buttons {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.autonomy-btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.autonomy-btn.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.autonomy-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .control-section h3 {
   font-size: 0.85rem;
   color: var(--muted);
