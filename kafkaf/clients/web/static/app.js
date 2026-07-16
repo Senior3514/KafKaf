@@ -34,7 +34,22 @@ const PERSONA_KEY = "kafkaf-persona";
 personaSelectEl.value = localStorage.getItem(PERSONA_KEY) || "default";
 personaSelectEl.addEventListener("change", () => {
   localStorage.setItem(PERSONA_KEY, personaSelectEl.value);
+  updateSelectionHint();
 });
+
+// Always-visible explanation of the current persona/model choice — a
+// hover-only tooltip wasn't discoverable enough (real user feedback: "not
+// clear what these dropdowns mean").
+const selectionHintEl = document.getElementById("selection-hint");
+function updateSelectionHint() {
+  if (!selectionHintEl) return;
+  const personaKey = `persona_${personaSelectEl.value}_desc`;
+  const brainKey = brainSelectEl.value === "own" ? "brain_own_desc" : "brain_default_desc";
+  selectionHintEl.textContent = `${t(personaKey)} · ${t(brainKey)}`;
+}
+brainSelectEl.addEventListener("change", updateSelectionHint);
+document.addEventListener("kafkaf-lang-changed", updateSelectionHint);
+updateSelectionHint();
 
 const COUNCIL_KEY = "kafkaf-council";
 councilToggleEl.checked = localStorage.getItem(COUNCIL_KEY) === "1";

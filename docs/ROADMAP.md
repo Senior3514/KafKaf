@@ -484,12 +484,75 @@ depends on a big-bang release — "grow it over time."
       Playwright-driven live sweep, not just unit tests, caught something
       real — the lesson from phase 14 held again: broader, more realistic
       verification finds gaps that narrower checks don't.
+- [x] **Phase 19 — A third instance of the same bug class, always-visible
+      persona/model explanations, three new skills, and a scoping decision
+      on a much bigger ask**: real screenshots from the user's actual
+      running `kafkaf-desktop` showed `brain: "own"` returning
+      `Backend returned 500 with a non-JSON body`, while the default Ollama
+      brain worked normally. Root cause, found by reading the code:
+      `core/api.py`'s `/chat` handler resolves an explicit `brain`
+      override in a try/except that only caught `ValueError`/
+      `RuntimeError` — `get_brain("own")` lazy-imports `OwnModelBrain`,
+      which imports `torch` (the optional `[train]` extra), and on a
+      machine that only ran `pip install -e ".[dev]"` that raises
+      `ModuleNotFoundError`, falling straight through into a raw,
+      non-JSON 500. The third distinct instance of this exact bug class
+      this session (`/chat`'s main handler in phase 15, `/enrichment/train`
+      in phase 18) — each time a narrow except clause missed a real
+      exception type. Fixed the same way: broaden the catch, with a
+      message specific to this case (`brain: "own"` needs `pip install -e
+      ".[train]"`), plus a regression test forcing `get_brain` to raise
+      `ModuleNotFoundError` via monkeypatch.
+
+      Also from the same message: "not clear what these dropdowns mean" —
+      the `title`-attribute tooltips added in phase 17 were hover-only and
+      not discoverable enough. Replaced with an always-visible selection-
+      hint bar under the header (`#selection-hint` in `index.html`/
+      `app.js`) that shows a plain-language description of the current
+      persona *and* brain together, updating live as either changes, in
+      both languages — no hover, no extra click.
+
+      Shipped three new skills, all within the existing safe,
+      no-code-execution skills framework (`core/skills/`): `system_info`
+      (read-only OS/CPU/disk snapshot of the host KafKaf runs on, stdlib
+      only), `journal` (a private timestamped notes log, same sandbox
+      confinement as `files`), and `own_model_status` (surfaces
+      `enrichment/service.py`'s `get_status()` conversationally, distinct
+      from `memory_search`'s content search) — fourteen skills total now.
+
+      **A scoping decision, recorded honestly**: the same message also
+      asked for something much larger — an agent that "moves around the
+      machine, organizes, protects, alerts, learns everything about
+      everything" (comparing it to a commercial "Hermes Agent" product).
+      Asked a clarifying multiple-choice question about the concrete
+      technical scope (which directories, what "protect" means as an
+      actual mechanism); the answer delegated the decision ("do what's
+      needed... whatever you think") without supplying that scope. Given
+      that code-execution/broad-system-access capability has already been
+      proposed and blocked twice this session by the platform's own
+      permission system as an unacceptable RCE surface — and that
+      enthusiastic approval doesn't substitute for an actual technical
+      spec — the decision was to build only the safe, in-sandbox tier
+      (the three skills above) and explicitly not build broad host
+      filesystem/process access or autonomous "protective" action this
+      round. Documented in `docs/ROADMAP.md` (here) so it isn't silently
+      dropped: if pursued later, it needs a concrete spec, not general
+      enthusiasm, given the precedent.
 
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
 built yet — named here so nothing is silently dropped:
 
+- **A broader autonomous "system agent"** (moves around the host
+  filesystem, organizes files, monitors/protects, alerts) — requested in
+  phase 19, deliberately not built. Code-execution/broad-system-access
+  capability has been proposed and blocked twice this session by the
+  platform's own permission system as an unacceptable RCE surface given
+  the unattended `autopilot` loop; this request is the same risk category
+  at a larger scope. Needs a concrete technical spec before any of it is
+  built — which directories, what "protect" does mechanically, what
+  "alert" delivers and to where — not general approval alone.
 - **Multi-user auth/RBAC** (local accounts or OAuth, per-user quotas) —
   needed only if KafKaf is ever meant for more than one trusted
   user/household over Tailscale; today's rate limiting and audit log are

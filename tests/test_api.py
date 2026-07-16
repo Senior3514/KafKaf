@@ -117,6 +117,30 @@ def test_chat_unknown_provider_returns_400():
     assert response.status_code == 400
 
 
+def test_chat_own_brain_without_torch_returns_clean_400_not_raw_500(monkeypatch):
+    """Found live: selecting "Our own model" in the web GUI on a machine
+    that only ran `pip install -e ".[dev]"` (no [train] extra, so no
+    torch) raised ModuleNotFoundError while resolving the brain — before
+    the broad except-Exception fallback further down is even reached.
+    That fell through to FastAPI's default handler: a raw, non-JSON 500
+    ("Backend returned 500 with a non-JSON body" in the web GUI), the same
+    bug class already fixed twice this session elsewhere."""
+
+    def boom(spec: str):
+        raise ModuleNotFoundError("No module named 'torch'")
+
+    monkeypatch.setattr("kafkaf.core.api.get_brain", boom)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-own-no-torch", "brain": "own"}
+        )
+    assert response.status_code == 400
+    body = response.json()
+    assert "detail" in body
+    assert "train" in body["detail"]
+
+
 def test_chat_council_without_config_returns_400():
     with TestClient(app) as client:
         response = client.post("/chat", json={"message": "hi", "session_id": "s5", "council": True})

@@ -131,7 +131,7 @@ sees/returns plain text, so skills work the same way across Ollama, every
 API brain, and eventually the small owned model, without touching the
 `Brain` interface per provider.
 
-`core/skills/registry.py` (`ALL_SKILLS`/`SKILLS_BY_NAME`) lists the eleven
+`core/skills/registry.py` (`ALL_SKILLS`/`SKILLS_BY_NAME`) lists the fourteen
 shipped skills — `web_search` (DuckDuckGo HTML, no key), `web_fetch`,
 `calculator` (safe `ast`-based evaluator, never `eval`/`exec`),
 `current_datetime`, `memory_search` (queries the enrichment corpus),
@@ -141,7 +141,12 @@ search over that same workspace's file *content* — no vector DB or
 embeddings, just `re`-based tokenizing and overlap scoring, sharing the
 sandboxing helper in `core/skills/sandbox.py` with `files`), `reminders`
 (persistent, its own sqlite table via `core/skills/store.py`),
-`unit_convert`, `rss`, and `weather` (Open-Meteo, no key). Each
+`unit_convert`, `rss`, `weather` (Open-Meteo, no key), `system_info`
+(read-only `platform`/`shutil.disk_usage` snapshot of the host KafKaf runs
+on, stdlib only), `journal` (timestamped notes, same sandbox as `files`),
+and `own_model_status` (surfaces `enrichment/service.py`'s `get_status()`
+conversationally — distinct from `memory_search`, which searches the
+corpus's *content* rather than reporting its size/training progress). Each
 `Skill.run()` takes and returns plain text — one argument, not multi-field
 JSON — since small local models format that far more reliably than
 structured calls.

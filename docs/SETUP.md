@@ -401,7 +401,7 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The eleven skills that ship today, all working with no API key required:
+The fourteen skills that ship today, all working with no API key required:
 
 | Skill | What it does |
 |---|---|
@@ -416,6 +416,9 @@ The eleven skills that ship today, all working with no API key required:
 | `unit_convert` | Length/weight/temperature conversion |
 | `rss` | Latest items from an RSS/Atom feed |
 | `weather` | Current weather for a city (Open-Meteo, no key) |
+| `system_info` | Read-only snapshot of the machine KafKaf itself runs on (OS, Python, CPU, disk) |
+| `journal` | A private, timestamped notes log confined to the sandboxed workspace |
+| `own_model_status` | How much the own model has learned so far — corpus size and last training run |
 
 The sandboxed workspace for the `files` and `document_search` skills
 defaults to `./workspace` — override with `KAFKAF_SKILLS_WORKSPACE_DIR`.
