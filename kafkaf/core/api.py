@@ -95,6 +95,20 @@ async def chat(request: ChatRequest) -> ChatResponse:
             brain = get_brain(request.brain)
         except (ValueError, RuntimeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ModuleNotFoundError as exc:
+            # get_brain("own") lazily imports OwnModelBrain, which imports
+            # torch — an optional [train] extra. On a machine that only
+            # installed the base package (the common case), that import
+            # fails here, before the broad except-Exception fallback below
+            # is even reached — this must not fall through to a raw,
+            # non-JSON 500 (found live: selecting "Our own model" in the
+            # web GUI without [train] installed did exactly that).
+            raise HTTPException(
+                status_code=400,
+                detail=f"Can't use brain {request.brain!r}: {exc}. If this is "
+                '"own", it needs the optional \'train\' extra: run '
+                'pip install -e ".[train]" (installs torch), then restart the server.',
+            ) from exc
 
     council_brains = None
     if request.council:

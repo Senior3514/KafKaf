@@ -6,8 +6,11 @@ from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
 from kafkaf.core.skills.document_search import DocumentSearchSkill
 from kafkaf.core.skills.files import FilesSkill
+from kafkaf.core.skills.journal import JournalSkill
 from kafkaf.core.skills.memory_search import MemorySearchSkill
+from kafkaf.core.skills.own_model_status import OwnModelStatusSkill
 from kafkaf.core.skills.reminders import RemindersSkill
+from kafkaf.core.skills.system_info import SystemInfoSkill
 from kafkaf.core.skills.unit_convert import UnitConvertSkill
 
 
@@ -174,3 +177,52 @@ class TestMemorySearch:
     async def test_no_match(self):
         result = await MemorySearchSkill().run("nonexistent topic xyz")
         assert "nothing found" in result
+
+
+class TestSystemInfo:
+    @pytest.mark.asyncio
+    async def test_returns_a_snapshot(self):
+        result = await SystemInfoSkill().run("")
+        assert "OS:" in result
+        assert "Python:" in result
+        assert "CPU cores:" in result
+        assert "Disk:" in result
+
+
+class TestJournal:
+    @pytest.mark.asyncio
+    async def test_empty_journal(self):
+        result = await JournalSkill().run("show")
+        assert result == "journal is empty"
+
+    @pytest.mark.asyncio
+    async def test_add_then_show(self):
+        add_result = await JournalSkill().run("add fed the model a new fact")
+        assert "fed the model a new fact" in add_result
+        show_result = await JournalSkill().run("show")
+        assert "fed the model a new fact" in show_result
+        assert "UTC" in show_result
+
+    @pytest.mark.asyncio
+    async def test_empty_note_error(self):
+        result = await JournalSkill().run("add ")
+        assert result.startswith("error:")
+
+    @pytest.mark.asyncio
+    async def test_unrecognized_command(self):
+        result = await JournalSkill().run("delete everything")
+        assert result.startswith("error:")
+
+
+class TestOwnModelStatus:
+    @pytest.mark.asyncio
+    async def test_never_trained(self):
+        result = await OwnModelStatusSkill().run("")
+        assert "never trained yet" in result
+        assert "corpus: 0 examples" in result
+
+    @pytest.mark.asyncio
+    async def test_reports_corpus_size_after_teaching(self):
+        enrichment_store.save_example("fact", "KafKaf", "about kafkaf", "KafKaf is private.")
+        result = await OwnModelStatusSkill().run("")
+        assert "corpus: 1 examples" in result

@@ -134,12 +134,15 @@ parallel; one gets synthesized into a final reply. Real, working
 and the brain can actually *use tools* mid-conversation instead of only
 talking: real web search, a calculator, reading/writing sandboxed files,
 searching what's actually written in those files (keyword "RAG-lite," no
-vector DB), persistent reminders, unit conversion, RSS feeds, weather, and
-searching what your own model has already been taught — eleven skills, all
-working with no API key required. This is the ReAct pattern (ask a model to
-act, not just answer), and it works the same way regardless of which brain
-is answering. Combines with council mode too — turn both on and every
-council brain gets independent tool access before synthesis. See
+vector DB), persistent reminders, unit conversion, RSS feeds, weather,
+searching what your own model has already been taught, a read-only system
+snapshot of the machine KafKaf itself runs on, a private timestamped
+journal, and a report on how much the own model has actually learned so
+far — fourteen skills, all working with no API key required. This is the
+ReAct pattern (ask a model to act, not just answer), and it works the same
+way regardless of which brain is answering. Combines with council mode too
+— turn both on and every council brain gets independent tool access before
+synthesis. See
 `docs/SETUP.md` for the full list and `docs/ARCHITECTURE.md` for how it
 works under the hood.
 
