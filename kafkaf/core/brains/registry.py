@@ -3,7 +3,6 @@ from kafkaf.core.brains.base import Brain
 from kafkaf.core.brains.gemini_brain import GeminiBrain
 from kafkaf.core.brains.ollama_brain import OllamaBrain
 from kafkaf.core.brains.openai_brain import OpenAIBrain
-from kafkaf.core.brains.own_model_brain import OwnModelBrain
 
 _PROVIDERS = {
     "ollama": OllamaBrain,
@@ -20,6 +19,12 @@ def get_brain(spec: str) -> Brain:
     "gemini:gemini-1.5-flash", or "own" for KafKaf's own trained model.
     """
     if spec == "own":
+        # Local import: torch (via own_model_brain -> kafkaf.model.gpt) is an
+        # optional [train] dependency — the base backend must start and serve
+        # every other brain without it installed. Matches the same pattern
+        # already used in enrichment/service.py.
+        from kafkaf.core.brains.own_model_brain import OwnModelBrain
+
         return OwnModelBrain()
 
     if ":" not in spec:

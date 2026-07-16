@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from kafkaf.core.brains.anthropic_brain import AnthropicBrain
@@ -49,3 +51,41 @@ def test_get_brain_unknown_provider():
 def test_get_brain_invalid_spec():
     with pytest.raises(ValueError):
         get_brain("no-colon-here")
+
+
+def test_registry_and_api_import_without_torch_installed():
+    """The base backend must start and serve every non-"own" brain without
+    torch installed (it's an optional [train] extra) — a real bug where
+    registry.py imported OwnModelBrain (and therefore torch) at module
+    level, breaking `kafkaf-server` for anyone who only ran `pip install
+    -e ".[dev]"`, surfaced via live testing on a fresh machine."""
+    modules_to_purge = [
+        name
+        for name in sys.modules
+        if name == "torch" or name.startswith(("torch.", "kafkaf.model", "kafkaf.core.brains.own_model_brain"))
+    ]
+    saved = {name: sys.modules[name] for name in modules_to_purge}
+    also_purge_for_reimport = ["kafkaf.core.brains.registry", "kafkaf.core.api", "kafkaf.core.council"]
+    saved.update({name: sys.modules[name] for name in also_purge_for_reimport if name in sys.modules})
+
+    for name in list(saved):
+        del sys.modules[name]
+    sys.modules["torch"] = None  # any `import torch` now raises ImportError
+
+    try:
+        import importlib
+
+        registry = importlib.import_module("kafkaf.core.brains.registry")
+        assert isinstance(registry.get_brain("ollama:llama3"), OllamaBrain)
+
+        with pytest.raises(ImportError):
+            registry.get_brain("own")
+
+        # The rest of the backend must import cleanly too, not just registry.
+        importlib.import_module("kafkaf.core.api")
+    finally:
+        for name in list(sys.modules):
+            if name == "torch" and sys.modules[name] is None:
+                del sys.modules[name]
+        sys.modules.update(saved)
+        importlib.invalidate_caches()
