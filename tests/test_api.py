@@ -173,6 +173,33 @@ def test_autonomy_endpoint_returns_current_level():
     assert body["skills_allowed"] is True
 
 
+def test_set_autonomy_changes_level_and_skills_gate(monkeypatch):
+    """The Control Panel's autonomy switcher — changing level must take
+    effect immediately for this process, no restart, so /chat's skills gate
+    (and the web GUI's Skills checkbox) never contradicts what was picked."""
+    monkeypatch.setattr("kafkaf.core.config.settings.autonomy_level", "autonomous")
+
+    with TestClient(app) as client:
+        response = client.post("/autonomy", json={"level": "observe"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["level"] == "observe"
+        assert body["skills_allowed"] is False
+
+        # And it's really live: skills are now rejected without a restart.
+        chat_response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-live-autonomy", "skills": True}
+        )
+    assert chat_response.status_code == 400
+
+
+def test_set_autonomy_rejects_unknown_level():
+    with TestClient(app) as client:
+        response = client.post("/autonomy", json={"level": "godmode"})
+    assert response.status_code == 400
+    assert "godmode" in response.json()["detail"]
+
+
 def test_status_endpoint_returns_autonomy_and_own_model_state():
     """Backs the web GUI's Control Panel — one call for "what is this
     allowed to do, and what has the own model actually learned so far"."""
@@ -248,6 +275,24 @@ def test_enrichment_train_without_torch_installed_returns_clean_400(monkeypatch)
         response = client.post("/enrichment/train", json={"steps": 10})
     assert response.status_code == 400
     assert "train" in response.json()["detail"]
+
+
+def test_enrichment_train_other_failure_returns_clean_400_not_raw_500(monkeypatch):
+    """Found live: training with too little taught data raises a real
+    ValueError (corpus too small for block_size) from kafkaf/model/train.py.
+    A narrow except-ModuleNotFoundError-only catch let that fall through to
+    FastAPI's default handler — a raw, non-JSON 500 the web GUI can't
+    parse, the exact bug class /chat was already fixed for."""
+
+    def boom(steps: int) -> dict:
+        raise ValueError("Corpus too small (23 bytes) for block_size=128")
+
+    monkeypatch.setattr("kafkaf.core.api.enrichment_service.run_training_step", boom)
+
+    with TestClient(app) as client:
+        response = client.post("/enrichment/train", json={"steps": 10})
+    assert response.status_code == 400
+    assert "Corpus too small" in response.json()["detail"]
 
 
 def test_enrichment_train_runs_and_returns_result(monkeypatch):

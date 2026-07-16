@@ -46,27 +46,42 @@ councilToggleEl.addEventListener("change", () => {
 });
 brainSelectEl.disabled = councilToggleEl.checked;
 
-// Council needs KAFKAF_COUNCIL_BRAINS configured server-side — checking the
-// box without that configured used to just produce a confusing dead-end
-// error on send. Disable it upfront instead, with an explanatory tooltip.
-fetch("/status")
-  .then((response) => (response.ok ? response.json() : null))
-  .then((data) => {
-    if (data && !data.council.configured) {
-      councilToggleEl.disabled = true;
-      councilToggleEl.checked = false;
-      const label = councilToggleEl.closest(".council-toggle");
-      if (label) {
-        label.classList.add("disabled");
-        label.setAttribute("data-i18n-title", "council_disabled_title");
-        label.setAttribute("title", t("council_disabled_title"));
-      }
+function setToggleAvailability(toggleEl, allowed, titleKey) {
+  const label = toggleEl.closest(".council-toggle");
+  toggleEl.disabled = !allowed;
+  if (!allowed) toggleEl.checked = false;
+  if (label) {
+    label.classList.toggle("disabled", !allowed);
+    if (!allowed) {
+      label.setAttribute("data-i18n-title", titleKey);
+      label.setAttribute("title", t(titleKey));
+    } else {
+      label.removeAttribute("data-i18n-title");
+      label.removeAttribute("title");
     }
-  })
-  .catch(() => {
-    /* backend not reachable yet on first paint — leave Council enabled,
+  }
+}
+
+// Council needs KAFKAF_COUNCIL_BRAINS configured, and Skills needs an
+// autonomy level above "observe" — checking either box without that used
+// to just produce a confusing dead-end error on send. Disable upfront
+// instead, with an explanatory tooltip, and re-check whenever the
+// Control Panel changes the autonomy level so the toggle never lies about
+// what will actually happen — no contradictions between what's shown and
+// what /chat will actually allow.
+async function refreshSkillsAvailability() {
+  try {
+    const response = await fetch("/status");
+    if (!response.ok) return;
+    const data = await response.json();
+    setToggleAvailability(councilToggleEl, data.council.configured, "council_disabled_title");
+    setToggleAvailability(skillsToggleEl, data.autonomy.skills_allowed, "skills_disabled_title");
+  } catch {
+    /* backend not reachable yet on first paint — leave both enabled,
        the /chat call itself will surface a clear error if it's still down */
-  });
+  }
+}
+refreshSkillsAvailability();
 
 const SKILLS_KEY = "kafkaf-skills";
 skillsToggleEl.checked = localStorage.getItem(SKILLS_KEY) === "1";
@@ -329,9 +344,19 @@ function renderControlPanel(statusData, auditEvents) {
         .join("")
     : `<p class="control-hint">${t("audit_empty")}</p>`;
 
+  const autonomyButtons = ["observe", "assisted", "autonomous"]
+    .map(
+      (level) => `
+      <button type="button" class="autonomy-btn${level === autonomyRow.level ? " active" : ""}" data-level="${level}">
+        ${t("autonomy_level_" + level)}
+      </button>`
+    )
+    .join("");
+
   controlBodyEl.innerHTML = `
     <div class="control-section">
       <h3>${t("autonomy_heading")}</h3>
+      <div class="autonomy-buttons">${autonomyButtons}</div>
       <div class="control-row"><span>${autonomyRow.level}</span><span class="value">${
     autonomyRow.skills_allowed ? t("autonomy_skills_yes") : t("autonomy_skills_no")
   }</span></div>
@@ -371,6 +396,26 @@ function renderControlPanel(statusData, auditEvents) {
     </div>
   `;
   wireGrowPanel(statusData.default_teacher);
+  wireAutonomyButtons();
+}
+
+function wireAutonomyButtons() {
+  controlBodyEl.querySelectorAll(".autonomy-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (btn.classList.contains("active")) return;
+      controlBodyEl.querySelectorAll(".autonomy-btn").forEach((b) => (b.disabled = true));
+      try {
+        await fetch("/autonomy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ level: btn.dataset.level }),
+        });
+      } finally {
+        await loadControlPanel();
+        await refreshSkillsAvailability();
+      }
+    });
+  });
 }
 
 function wireGrowPanel(defaultTeacher) {

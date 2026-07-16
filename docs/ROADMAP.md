@@ -446,6 +446,44 @@ depends on a big-bang release — "grow it over time."
       asserting no permission dialog fires on load, and proving the Grow
       panel actually works by teaching a fact through the UI and watching
       the corpus size go from 0 to 1 in the same panel.
+- [x] **Phase 18 — No contradictions: a live autonomy switch, and a
+      Playwright sweep that caught a real bug in the phase 17 work
+      itself**: the user's demand, stated bluntly — "if I pick full
+      autonomy, it must actually be full autonomy, with no more
+      contradicting buttons." The concrete contradiction: the Skills
+      checkbox (unlike Council, fixed in phase 17) didn't reflect whether
+      skills were actually allowed at the current autonomy level —
+      checking it at `observe` still produced a dead-end 400 on send. Fixed
+      two ways at once: a new `POST /autonomy` endpoint changes
+      `settings.autonomy_level` live, in-process, no restart (same
+      singleton-mutation pattern the test suite already relied on via
+      `monkeypatch`); and `refreshSkillsAvailability()` in `app.js` now
+      disables *both* Council and Skills checkboxes together whenever the
+      backend says either is unusable, re-checked immediately after any
+      autonomy change from the Control Panel's new Observe/Assisted/
+      Autonomous buttons. Scope stated honestly in both the UI hint and
+      `docs/SETUP.md`: this affects the current process only — not a
+      separately-running autopilot Docker container, and it doesn't
+      survive a restart without also setting `KAFKAF_AUTONOMY_LEVEL`.
+
+      Doing a full interactive-element sweep (every button, toggle, and
+      dropdown, exercised end-to-end with Playwright against a real
+      server) — the direct response to "keep improving every button, make
+      sure everything works smoothly" — caught a real regression the unit
+      tests had missed: `POST /enrichment/train` only caught
+      `ModuleNotFoundError` (the "torch not installed" case). Training
+      with too little taught data raises a real `ValueError` from
+      `kafkaf/model/train.py` ("corpus too small for block_size"), which
+      fell through the narrow catch straight into FastAPI's default
+      handler — a raw, non-JSON 500, the exact bug class `/chat` was
+      already fixed for in phase 15, reintroduced by the phase 17 work
+      that added this endpoint. Fixed with a broad `except Exception`
+      fallback (same pattern as `/chat` and `/enrichment/distill`), plus a
+      regression test that raises a real `ValueError` and asserts a clean
+      400 comes back. This is the second time in this project a
+      Playwright-driven live sweep, not just unit tests, caught something
+      real — the lesson from phase 14 held again: broader, more realistic
+      verification finds gaps that narrower checks don't.
 
 ## Deferred / future work
 
