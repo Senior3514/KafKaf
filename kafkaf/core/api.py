@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -55,6 +56,21 @@ class ChatResponse(BaseModel):
     session_id: str
 
 
+class TeachRequest(BaseModel):
+    topic: str
+    fact: str
+
+
+class DistillRequest(BaseModel):
+    topic: str
+    teacher: str
+    instruction: str = ""
+
+
+class TrainRequest(BaseModel):
+    steps: int = 50
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -102,9 +118,13 @@ async def chat(request: ChatRequest) -> ChatResponse:
         # the web GUI expects JSON back from every response, success or
         # failure, and an HTML error page fails client-side JSON parsing
         # with a confusing "Unexpected token" instead of the real problem.
+        # Some exceptions (httpx's timeout classes in particular) stringify
+        # to "" with no message at all — fall back to the exception's type
+        # name so the detail is never a useless empty "()".
+        reason = str(exc) or type(exc).__name__
         raise HTTPException(
             status_code=502,
-            detail=f"Couldn't get a reply from the model ({exc}). Is Ollama running "
+            detail=f"Couldn't get a reply from the model ({reason}). Is Ollama running "
             "and is the model pulled? See docs/USAGE.md#common-day-to-day-commands.",
         ) from exc
 
@@ -131,14 +151,58 @@ async def status() -> dict:
     training progress, and what skills/autopilot are actually allowed to do —
     the "full control and configuration" view, in one place, instead of
     scattered across docs and CLI commands."""
+    council_brains = [s.strip() for s in (settings.council_brains or "").split(",") if s.strip()]
     return {
         "autonomy": {
             "level": settings.autonomy_level,
             "description": autonomy.DESCRIPTIONS[settings.autonomy_level],
             "skills_allowed": autonomy.skills_allowed(),
         },
+        "council": {
+            "configured": bool(council_brains),
+            "brains": council_brains,
+        },
         "own_model": enrichment_service.get_status(),
+        "default_teacher": f"ollama:{settings.ollama_model}",
     }
+
+
+@app.post("/enrichment/teach")
+async def enrichment_teach(request: TeachRequest) -> dict:
+    """Directly teach a fact — no model call involved. The same primitive
+    the MCP server's teach_fact tool uses, reachable from the app itself."""
+    return enrichment_service.teach_fact(request.topic, request.fact)
+
+
+@app.post("/enrichment/distill")
+async def enrichment_distill(request: DistillRequest) -> dict:
+    """Ask another model (a teacher) to explain a topic and store what it
+    says as training data — the captured completion is returned so teaching
+    stays visible, not a blind ingestion."""
+    try:
+        teacher = get_brain(request.teacher)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        return await enrichment_service.distill_from_teacher(request.topic, teacher, request.instruction)
+    except Exception as exc:
+        reason = str(exc) or type(exc).__name__
+        raise HTTPException(status_code=502, detail=f"Teacher call failed ({reason}).") from exc
+
+
+@app.post("/enrichment/train")
+async def enrichment_train(request: TrainRequest) -> dict:
+    """Actually train on what's been taught so far. Runs in a worker thread —
+    training is CPU-bound sync code and must not block the event loop that
+    every other request (including a concurrent /chat) shares."""
+    try:
+        return await asyncio.to_thread(enrichment_service.run_training_step, request.steps)
+    except ModuleNotFoundError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Training needs the optional 'train' extra: run "
+            'pip install -e ".[train]" (installs torch), then restart the server.',
+        ) from exc
 
 
 @app.get("/", include_in_schema=False)

@@ -379,6 +379,73 @@ depends on a big-bang release — "grow it over time."
       model training already existed — it makes what already exists
       *visible* to someone who isn't going to read `kafkaf autonomy`/
       `kafkaf audit` CLI output or the docs to find it.
+- [x] **Phase 17 — Real bugs from a real Windows desktop-app run, a real
+      logo, and growing the own model from the app itself**: screenshots
+      from the same live-testing user's actual `kafkaf-desktop` session
+      surfaced several genuine problems at once:
+      - The theme's "auto" mode requested geolocation **on first page
+        load**, unprompted — a private-AI chat app asking for your location
+        before you've done anything reads as alarming, not helpful. Fixed:
+        first visit now resolves from `prefers-color-scheme` only; location
+        is requested only once someone explicitly cycles the toggle into
+        "auto" themselves.
+      - Sending a message when Ollama isn't reachable showed `Couldn't get
+        a reply from the model (). Is Ollama running...` — an **empty**
+        `()`. Root cause: `httpx`'s timeout exception classes often
+        stringify to `""` with no message, and `core/api.py`'s `/chat`
+        handler used `f"...({exc})..."` directly. Fixed with a
+        `str(exc) or type(exc).__name__` fallback so the detail is never
+        blank. The screenshots also showed this hanging silently for a
+        long time before erroring — `OllamaBrain` used one 120s timeout
+        for everything; split into separate connect (5s) and read (120s)
+        timeouts (`core/brains/ollama_brain.py`) so a genuinely-unreachable
+        Ollama fails fast instead of looking exactly like a frozen app.
+      - Checking "Council" without `KAFKAF_COUNCIL_BRAINS` configured
+        produced a confusing dead-end error on send. `/status` now reports
+        `council.configured`; the web GUI disables the checkbox upfront
+        with an explanatory tooltip instead of letting you hit the error.
+      - The Control Panel's 🎛️ button rendered as an empty placeholder box
+        on the user's Windows machine — emoji glyph support isn't
+        guaranteed even for moderately common emoji. Replaced with a
+        hand-built inline SVG icon, which renders identically everywhere
+        (no font dependency), and is the more robust choice for any future
+        icon in this app.
+      - The app icon set was a placeholder blue square with a white circle
+        — shipped since the PWA phase and never revisited, and a fair
+        target for "this looks generic." Designed a real logo (a flip-flop/
+        sandal mark, matching כפכף's literal meaning) as an inline,
+        theme-aware SVG for the header, and regenerated the full PWA/
+        favicon PNG set from the same design via headless-browser
+        rendering — no new dependency, no photorealistic-image-generation
+        tool was available or needed for a clean vector mark.
+      - Per explicit request, user-visible product-name surfaces
+        (`<title>`, header, the desktop window title, the PWA manifest
+        description) now show "KafKaf" only — the כפכף/כףכף wordmark was
+        dropped from *those specific surfaces*. Project identity docs
+        (README, CONTRIBUTING, persona flavor text, `pyproject.toml`) were
+        deliberately left untouched — that's the project's name and
+        character, not the in-app product-name display this request was
+        about.
+      - Biggest addition: **"our own model" is now teachable from the web
+        GUI itself**, not only via the MCP server — the same complaint
+        ("obviously our own model is the whole point") that motivated
+        phase 6 originally. New `POST /enrichment/teach`, `POST
+        /enrichment/distill`, `POST /enrichment/train` endpoints
+        (`core/api.py`) reuse `enrichment/service.py`'s existing functions
+        directly (`run_training_step` stays behind `asyncio.to_thread`,
+        and a missing `torch` install now returns a clear 400 instead of
+        a raw 500). The Control Panel gained a **Teach & grow** section:
+        a topic+fact form for direct teaching, a button to have the
+        default model explain a topic and capture that as training data,
+        and a training-steps field + "Train now" button — all live,
+        translated, refreshing the corpus/checkpoint numbers after every
+        action.
+
+      All of the above was live-verified end-to-end with Playwright against
+      the real running server, including proving the geolocation fix by
+      asserting no permission dialog fires on load, and proving the Grow
+      panel actually works by teaching a fact through the UI and watching
+      the corpus size go from 0 to 1 in the same panel.
 
 ## Deferred / future work
 

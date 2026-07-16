@@ -181,8 +181,84 @@ def test_status_endpoint_returns_autonomy_and_own_model_state():
     assert response.status_code == 200
     body = response.json()
     assert body["autonomy"]["level"] == "autonomous"
+    assert body["council"]["configured"] is False
     assert "corpus_size" in body["own_model"]
     assert "checkpoint_exists" in body["own_model"]
+    assert body["default_teacher"] == "ollama:qwen3:4b"
+
+
+def test_status_endpoint_reports_council_configured(monkeypatch):
+    monkeypatch.setattr("kafkaf.core.config.settings.council_brains", "ollama:a,ollama:b")
+    with TestClient(app) as client:
+        response = client.get("/status")
+    body = response.json()
+    assert body["council"]["configured"] is True
+    assert body["council"]["brains"] == ["ollama:a", "ollama:b"]
+
+
+def test_enrichment_teach_stores_a_fact_directly():
+    """The web GUI's "Grow" panel — teaching a fact with no model call,
+    same primitive the MCP server's teach_fact tool uses."""
+    with TestClient(app) as client:
+        response = client.post(
+            "/enrichment/teach", json={"topic": "kafkaf", "fact": "a private AI platform"}
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["corpus_size"]["total"] >= 1
+
+
+def test_enrichment_distill_calls_teacher_and_stores_completion(monkeypatch):
+    class TeacherBrain(Brain):
+        name = "teacher"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "Explanation of the topic."
+
+    monkeypatch.setattr("kafkaf.core.api.get_brain", lambda spec: TeacherBrain())
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/enrichment/distill", json={"topic": "kafkaf", "teacher": "ollama:llama3"}
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["completion"] == "Explanation of the topic."
+    assert body["teacher"] == "teacher"
+
+
+def test_enrichment_distill_unknown_teacher_returns_400(monkeypatch):
+    with TestClient(app) as client:
+        response = client.post(
+            "/enrichment/distill", json={"topic": "kafkaf", "teacher": "no-colon-here"}
+        )
+    assert response.status_code == 400
+
+
+def test_enrichment_train_without_torch_installed_returns_clean_400(monkeypatch):
+    """Training is an optional 'train' extra (torch) — if it isn't
+    installed, the endpoint must say so clearly, not 500."""
+
+    def boom(steps: int) -> dict:
+        raise ModuleNotFoundError("No module named 'torch'")
+
+    monkeypatch.setattr("kafkaf.core.api.enrichment_service.run_training_step", boom)
+
+    with TestClient(app) as client:
+        response = client.post("/enrichment/train", json={"steps": 10})
+    assert response.status_code == 400
+    assert "train" in response.json()["detail"]
+
+
+def test_enrichment_train_runs_and_returns_result(monkeypatch):
+    monkeypatch.setattr(
+        "kafkaf.core.api.enrichment_service.run_training_step",
+        lambda steps: {"steps": steps, "loss_start": 2.0, "loss_end": 1.5},
+    )
+    with TestClient(app) as client:
+        response = client.post("/enrichment/train", json={"steps": 10})
+    assert response.status_code == 200
+    assert response.json() == {"steps": 10, "loss_start": 2.0, "loss_end": 1.5}
 
 
 def test_chat_skills_rejected_at_observe_level(monkeypatch):

@@ -40,6 +40,30 @@ const TRANSLATIONS = {
     last_run_steps: "צעדים",
     audit_heading: "פעילות אחרונה",
     audit_empty: "אין עדיין פעילות רשומה.",
+    persona_title: "פרסונה: הטון וההנחיות של התשובה (לא מודל אחר)",
+    brain_title: "מודל: איזה מוח עונה — ברירת המחדל, או המודל הפרטי שגדל איתך",
+    council_title: "מועצת מוחות: כמה מודלים עונים יחד, ותשובה אחת מסוכמת מהן",
+    skills_title: "סקילים: נותן למודל להשתמש בכלים אמיתיים — חיפוש ברשת, מחשבון, קבצים ועוד",
+    control_title_tip: "בקרה ומצב המערכת: רמת אוטונומיה, מודל פרטי, פעילות אחרונה",
+    welcome_title: "ברוכים הבאים לKafKaf",
+    welcome_body: "עוזר פרטי, בבעלותכם, שרץ אצלכם ולומד עם הזמן. בחרו פרסונה וטון תשובה, הפעילו \"מועצת מוחות\" כדי לקבל תשובה מכמה מודלים יחד, או \"סקילים\" כדי לתת למודל להשתמש בכלים אמיתיים כמו חיפוש ומחשבון. פשוט תתחילו לכתוב למטה.",
+    typing_indicator: "כותב...",
+    council_disabled_title: "מועצת מוחות דורשת קונפיגורציה (KAFKAF_COUNCIL_BRAINS) — ראו docs/SETUP.md",
+    growth_heading: "ללמד ולהעשיר את המודל שלנו",
+    growth_intro: "המודל הפרטי שלנו מתחיל בלי לדעת כלום — הוא לומד רק ממה שמלמדים אותו כאן, ומשתפר עם אימון.",
+    growth_topic_label: "נושא",
+    growth_topic_placeholder: "למשל: פוטוסינתזה",
+    growth_fact_label: "עובדה (ללימוד ישיר)",
+    growth_fact_placeholder: "כתבו כאן את מה שהמודל צריך לדעת...",
+    growth_teach_btn: "למד עובדה זו",
+    growth_distill_btn: "בקש מהמודל הראשי להסביר וללמד",
+    growth_train_label: "צעדי אימון",
+    growth_train_btn: "אמן עכשיו",
+    growth_working: "עובד...",
+    growth_taught_ok: "נלמד ונשמר.",
+    growth_train_ok: "אימון הושלם.",
+    growth_error: "משהו נכשל: ",
+    growth_missing_fields: "נא למלא נושא (ועובדה, אם מלמדים ישירות)",
   },
   en: {
     persona_default: "Kaf (default)",
@@ -79,6 +103,30 @@ const TRANSLATIONS = {
     last_run_steps: "steps",
     audit_heading: "Recent activity",
     audit_empty: "No activity recorded yet.",
+    persona_title: "Persona: the reply's tone and instructions (not a different model)",
+    brain_title: "Model: which brain answers — the default, or your own model that grows over time",
+    council_title: "Council: several models answer in parallel, synthesized into one reply",
+    skills_title: "Skills: lets the model use real tools — web search, calculator, files, and more",
+    control_title_tip: "Control & status: autonomy level, own model, recent activity",
+    welcome_title: "Welcome to KafKaf",
+    welcome_body: "A private assistant that runs on your own machine and grows over time. Pick a persona and tone, turn on \"Council\" to get one answer synthesized from several models, or \"Skills\" to let it use real tools like web search and a calculator. Just start typing below.",
+    typing_indicator: "Typing...",
+    council_disabled_title: "Council needs configuration (KAFKAF_COUNCIL_BRAINS) — see docs/SETUP.md",
+    growth_heading: "Teach & grow our own model",
+    growth_intro: "Our private model starts knowing nothing — it only learns from what's taught here, and improves with training.",
+    growth_topic_label: "Topic",
+    growth_topic_placeholder: "e.g. photosynthesis",
+    growth_fact_label: "Fact (for direct teaching)",
+    growth_fact_placeholder: "Write what the model should know...",
+    growth_teach_btn: "Teach this fact",
+    growth_distill_btn: "Ask the main model to explain & teach it",
+    growth_train_label: "Training steps",
+    growth_train_btn: "Train now",
+    growth_working: "Working...",
+    growth_taught_ok: "Learned and saved.",
+    growth_train_ok: "Training complete.",
+    growth_error: "Something failed: ",
+    growth_missing_fields: "Please fill in a topic (and a fact, for direct teaching)",
   },
 };
 
@@ -107,12 +155,17 @@ function applyLanguage(lang) {
   document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
     el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria")));
   });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
+  });
 
   const langToggleEl = document.getElementById("lang-toggle");
   if (langToggleEl) {
     langToggleEl.textContent = lang === "he" ? "EN" : "עב";
     langToggleEl.setAttribute("aria-label", lang === "he" ? "Switch to English" : "עברית");
   }
+
+  document.dispatchEvent(new CustomEvent("kafkaf-lang-changed"));
 }
 
 function initLanguage() {

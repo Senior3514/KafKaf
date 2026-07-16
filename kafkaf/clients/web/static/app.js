@@ -46,6 +46,28 @@ councilToggleEl.addEventListener("change", () => {
 });
 brainSelectEl.disabled = councilToggleEl.checked;
 
+// Council needs KAFKAF_COUNCIL_BRAINS configured server-side — checking the
+// box without that configured used to just produce a confusing dead-end
+// error on send. Disable it upfront instead, with an explanatory tooltip.
+fetch("/status")
+  .then((response) => (response.ok ? response.json() : null))
+  .then((data) => {
+    if (data && !data.council.configured) {
+      councilToggleEl.disabled = true;
+      councilToggleEl.checked = false;
+      const label = councilToggleEl.closest(".council-toggle");
+      if (label) {
+        label.classList.add("disabled");
+        label.setAttribute("data-i18n-title", "council_disabled_title");
+        label.setAttribute("title", t("council_disabled_title"));
+      }
+    }
+  })
+  .catch(() => {
+    /* backend not reachable yet on first paint — leave Council enabled,
+       the /chat call itself will surface a clear error if it's still down */
+  });
+
 const SKILLS_KEY = "kafkaf-skills";
 skillsToggleEl.checked = localStorage.getItem(SKILLS_KEY) === "1";
 skillsToggleEl.addEventListener("change", () => {
@@ -53,6 +75,7 @@ skillsToggleEl.addEventListener("change", () => {
 });
 
 function addBubble(role, text) {
+  removeWelcome();
   const bubble = document.createElement("div");
   bubble.className = `bubble ${role}`;
   bubble.textContent = text;
@@ -60,6 +83,39 @@ function addBubble(role, text) {
   chatEl.scrollTop = chatEl.scrollHeight;
   return bubble;
 }
+
+function addTypingIndicator() {
+  const bubble = document.createElement("div");
+  bubble.className = "bubble assistant typing";
+  bubble.setAttribute("aria-label", t("typing_indicator"));
+  bubble.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  chatEl.appendChild(bubble);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return bubble;
+}
+
+function removeWelcome() {
+  const welcome = document.getElementById("welcome-card");
+  if (welcome) welcome.remove();
+}
+
+function showWelcomeIfEmpty() {
+  if (chatEl.children.length > 0) return;
+  const card = document.createElement("div");
+  card.id = "welcome-card";
+  card.className = "welcome-card";
+  card.innerHTML = `<h2>${t("welcome_title")}</h2><p>${t("welcome_body")}</p>`;
+  chatEl.appendChild(card);
+}
+showWelcomeIfEmpty();
+
+document.addEventListener("kafkaf-lang-changed", () => {
+  const welcome = document.getElementById("welcome-card");
+  if (welcome) {
+    welcome.querySelector("h2").textContent = t("welcome_title");
+    welcome.querySelector("p").textContent = t("welcome_body");
+  }
+});
 
 inputEl.addEventListener("input", () => {
   inputEl.style.height = "auto";
@@ -82,6 +138,7 @@ formEl.addEventListener("submit", async (event) => {
   inputEl.value = "";
   inputEl.style.height = "auto";
   sendBtn.disabled = true;
+  const typingBubble = addTypingIndicator();
 
   try {
     const response = await fetch("/chat", {
@@ -109,8 +166,10 @@ formEl.addEventListener("submit", async (event) => {
     if (!response.ok) {
       throw new Error(data.detail || `Backend returned ${response.status}`);
     }
+    typingBubble.remove();
     addBubble("assistant", data.reply);
   } catch (err) {
+    typingBubble.remove();
     addBubble("error", `${t("error_prefix")}: ${err.message}`);
   } finally {
     sendBtn.disabled = false;
@@ -205,8 +264,12 @@ function resolveAutoTheme() {
   }
 }
 
+// No theme choice saved yet (first visit) resolves from the OS preference
+// only — it must NOT silently ask for the visitor's location before
+// they've done anything. Geolocation is only ever requested once someone
+// explicitly cycles the toggle into "auto" mode themselves.
 function currentTheme() {
-  return localStorage.getItem(THEME_KEY) || "auto";
+  return localStorage.getItem(THEME_KEY);
 }
 
 function applyTheme(theme) {
@@ -230,7 +293,7 @@ if (themeToggleEl) {
     applyTheme(next);
   });
 }
-applyTheme(currentTheme());
+applyTheme(currentTheme() || (systemPrefersDark() ? "dark" : "light"));
 
 // ---------------------------------------------------------------------
 // Control panel: real, live view of autonomy level, own-model training
@@ -288,7 +351,81 @@ function renderControlPanel(statusData, auditEvents) {
       <h3>${t("audit_heading")}</h3>
       ${auditHtml}
     </div>
+    <div class="control-section">
+      <h3>${t("growth_heading")}</h3>
+      <p class="control-hint">${t("growth_intro")}</p>
+      <label class="growth-label" for="growth-topic">${t("growth_topic_label")}</label>
+      <input id="growth-topic" class="growth-input" type="text" placeholder="${t("growth_topic_placeholder")}" />
+      <label class="growth-label" for="growth-fact">${t("growth_fact_label")}</label>
+      <textarea id="growth-fact" class="growth-input" rows="2" placeholder="${t("growth_fact_placeholder")}"></textarea>
+      <div class="growth-actions">
+        <button type="button" id="growth-teach-btn" class="growth-btn">${t("growth_teach_btn")}</button>
+        <button type="button" id="growth-distill-btn" class="growth-btn">${t("growth_distill_btn")}</button>
+      </div>
+      <div class="growth-train-row">
+        <label class="growth-label" for="growth-steps">${t("growth_train_label")}</label>
+        <input id="growth-steps" class="growth-steps-input" type="number" min="1" value="50" />
+        <button type="button" id="growth-train-btn" class="growth-btn">${t("growth_train_btn")}</button>
+      </div>
+      <p id="growth-status" class="control-hint" aria-live="polite"></p>
+    </div>
   `;
+  wireGrowPanel(statusData.default_teacher);
+}
+
+function wireGrowPanel(defaultTeacher) {
+  const topicEl = document.getElementById("growth-topic");
+  const factEl = document.getElementById("growth-fact");
+  const stepsEl = document.getElementById("growth-steps");
+  const statusEl = document.getElementById("growth-status");
+  const teachBtn = document.getElementById("growth-teach-btn");
+  const distillBtn = document.getElementById("growth-distill-btn");
+  const trainBtn = document.getElementById("growth-train-btn");
+
+  async function runGrowthAction(action) {
+    const buttons = [teachBtn, distillBtn, trainBtn];
+    buttons.forEach((btn) => (btn.disabled = true));
+    statusEl.textContent = t("growth_working");
+    try {
+      await action();
+      await loadControlPanel();
+    } catch (err) {
+      statusEl.textContent = `${t("growth_error")}${err.message}`;
+      buttons.forEach((btn) => (btn.disabled = false));
+    }
+  }
+
+  async function postJson(url, body) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || `${response.status}`);
+    return data;
+  }
+
+  teachBtn.addEventListener("click", () =>
+    runGrowthAction(async () => {
+      if (!topicEl.value.trim() || !factEl.value.trim()) throw new Error(t("growth_missing_fields"));
+      await postJson("/enrichment/teach", { topic: topicEl.value.trim(), fact: factEl.value.trim() });
+    })
+  );
+
+  distillBtn.addEventListener("click", () =>
+    runGrowthAction(async () => {
+      if (!topicEl.value.trim()) throw new Error(t("growth_missing_fields"));
+      await postJson("/enrichment/distill", { topic: topicEl.value.trim(), teacher: defaultTeacher });
+    })
+  );
+
+  trainBtn.addEventListener("click", () =>
+    runGrowthAction(async () => {
+      const steps = parseInt(stepsEl.value, 10) || 50;
+      await postJson("/enrichment/train", { steps });
+    })
+  );
 }
 
 async function loadControlPanel() {

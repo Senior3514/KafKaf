@@ -113,7 +113,7 @@ growing model are shared across all of them.
 
 | Interface | How |
 |---|---|
-| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or the council/skills toggles for the modes below. The 🎛️ button opens a live Control Panel (autonomy level, own-model training progress, recent activity). |
+| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or the council/skills toggles for the modes below. The sliders icon opens a live Control Panel (autonomy level, own-model training progress + a Teach & grow form, recent activity). |
 | **CLI** | Run `pip install -e .`. Then, as a separate command, run `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to talk to your own model, `--council` to fan out to every `KAFKAF_COUNCIL_BRAINS` brain, or `--skills` to let it use tools. |
 | **Desktop app** ⭐ easiest | Run `pip install -e ".[desktop]"`. Then, as a separate command, run `kafkaf-desktop`. That single command opens a real native window **and starts its own backend automatically** — you do *not* need `kafkaf-server` running in another window too; pick this one command, or the browser option in step 1, not both. Or download a pre-built executable from the "Build desktop app" GitHub Actions workflow. |
 | **API** | `POST /chat` with `{"message": "...", "brain": "own"}`, `{"council": true}`, or `{"skills": true}` — see `docs/ARCHITECTURE.md`. |
@@ -155,7 +155,15 @@ with.
 
 ## 4. Growing your own model
 
-Two ways to teach it, and they compose — do both.
+Three ways to teach it, and they compose — do as many as you want.
+
+### From the web GUI (no extra install)
+
+Open the Control Panel (sliders icon in the header) → **Teach & grow**.
+Type a topic and a fact to teach it directly, or just a topic and ask the
+default model to explain it for you. A "Train now" button runs an actual
+training step on everything taught so far. This is the fastest way to try
+growing your own model — see `docs/USAGE.md#teaching-your-own-model`.
 
 ### Manually, via MCP
 
