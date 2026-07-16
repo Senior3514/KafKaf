@@ -52,6 +52,7 @@ def test_web_gui_served_at_root():
         response = client.get("/")
     assert response.status_code == 200
     assert "KafKaf" in response.text
+    assert 'id="control-toggle"' in response.text
 
 
 def test_web_gui_static_assets():
@@ -170,6 +171,18 @@ def test_autonomy_endpoint_returns_current_level():
     body = response.json()
     assert body["level"] == "autonomous"
     assert body["skills_allowed"] is True
+
+
+def test_status_endpoint_returns_autonomy_and_own_model_state():
+    """Backs the web GUI's Control Panel — one call for "what is this
+    allowed to do, and what has the own model actually learned so far"."""
+    with TestClient(app) as client:
+        response = client.get("/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["autonomy"]["level"] == "autonomous"
+    assert "corpus_size" in body["own_model"]
+    assert "checkpoint_exists" in body["own_model"]
 
 
 def test_chat_skills_rejected_at_observe_level(monkeypatch):

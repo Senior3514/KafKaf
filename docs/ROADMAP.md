@@ -346,6 +346,39 @@ depends on a big-bang release — "grow it over time."
       toggle actually flipping `dir`/`lang`/labels, bubble alignment
       correct on both sides, and light vs. dark mode producing genuinely
       different rendered colors — not just asserted, screenshotted.
+- [x] **Phase 16 — Onboarding clarity and a real in-app Control Panel**:
+      the same live-testing user hit a third real friction point after
+      phases 14-15 unblocked them — not a bug in the code, but a bug in
+      *communication*. Chat prose describing "run `pip install -e
+      ".[desktop]"` then `kafkaf-desktop`" used "then" as an English
+      connecting word between two separate commands; copy-pasted literally
+      into PowerShell, it tried (and failed) to `pip install` a package
+      named `then`. `docs/GUIDE.md`'s interface table had the identical
+      inline phrasing (unlike `docs/USAGE.md`, which already used a proper
+      two-line code block). Separately, the user didn't know
+      `kafkaf-desktop` starts its own backend automatically — they assumed
+      (reasonably, since nothing said otherwise) that `kafkaf-server` had
+      to be running in a second window first. Fixed: every "run X, then
+      run Y" description in `docs/GUIDE.md` is now an explicit two-command
+      table row with a "these are separate commands" callout, plus a new
+      "The absolute short version" section at the very top of the guide
+      explaining the engine/window distinction in plain terms before any
+      other detail; `docs/USAGE.md`'s desktop-app paragraph now says
+      explicitly that `kafkaf-desktop` is self-contained and you pick one
+      interface, not both.
+
+      Also shipped, from the same message's "we want full control and full
+      configuration" ask: a real **Control Panel** in the web GUI (🎛️
+      button) — a new `GET /status` endpoint (`core/api.py`) surfacing
+      current autonomy level + description + whether skills are allowed,
+      own-model training progress (corpus size, examples still waiting to
+      be trained, whether a checkpoint exists, the last training run), and
+      the 8 most recent `/audit` events, all rendered live in a themed,
+      translated, RTL/LTR-correct modal. This doesn't add new autonomy
+      *capabilities* — autonomy levels, autopilot, and manual/automatic
+      model training already existed — it makes what already exists
+      *visible* to someone who isn't going to read `kafkaf autonomy`/
+      `kafkaf audit` CLI output or the docs to find it.
 
 ## Deferred / future work
 

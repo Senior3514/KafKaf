@@ -10,6 +10,8 @@ from kafkaf.core import autonomy, council
 from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
+from kafkaf.core.enrichment import service as enrichment_service
+from kafkaf.core.enrichment import store as enrichment_store
 from kafkaf.core.memory import store
 from kafkaf.core.rate_limit import RateLimitMiddleware
 from kafkaf.core.skills import store as skills_store
@@ -22,6 +24,7 @@ async def lifespan(app: FastAPI):
     store.init_db()
     skills_store.init_db()
     audit_store.init_db()
+    enrichment_store.init_db()
     yield
 
 
@@ -119,6 +122,22 @@ async def autonomy_status() -> dict:
         "level": settings.autonomy_level,
         "description": autonomy.DESCRIPTIONS[settings.autonomy_level],
         "skills_allowed": autonomy.skills_allowed(),
+    }
+
+
+@app.get("/status")
+async def status() -> dict:
+    """Everything a Control Panel needs in one call: autonomy level, own-model
+    training progress, and what skills/autopilot are actually allowed to do —
+    the "full control and configuration" view, in one place, instead of
+    scattered across docs and CLI commands."""
+    return {
+        "autonomy": {
+            "level": settings.autonomy_level,
+            "description": autonomy.DESCRIPTIONS[settings.autonomy_level],
+            "skills_allowed": autonomy.skills_allowed(),
+        },
+        "own_model": enrichment_service.get_status(),
     }
 
 

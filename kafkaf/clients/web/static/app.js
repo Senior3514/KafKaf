@@ -231,3 +231,98 @@ if (themeToggleEl) {
   });
 }
 applyTheme(currentTheme());
+
+// ---------------------------------------------------------------------
+// Control panel: real, live view of autonomy level, own-model training
+// progress, and recent audit activity — the "what is this thing actually
+// allowed to do, and what has it done" answer, in the app itself instead
+// of only in docs/CLI commands.
+// ---------------------------------------------------------------------
+
+const controlToggleEl = document.getElementById("control-toggle");
+const controlOverlayEl = document.getElementById("control-overlay");
+const controlCloseEl = document.getElementById("control-close");
+const controlBodyEl = document.getElementById("control-body");
+
+function renderControlPanel(statusData, auditEvents) {
+  const own = statusData.own_model;
+  const autonomyRow = statusData.autonomy;
+
+  const lastRun = own.last_training_run;
+  const lastRunText = lastRun
+    ? `${t("last_run_steps")} ${lastRun.steps}, ${new Date(lastRun.created_at + "Z").toLocaleString()}`
+    : t("last_run_none");
+
+  const auditHtml = auditEvents.length
+    ? auditEvents
+        .slice(0, 8)
+        .map(
+          (event) => `
+        <div class="audit-item">
+          <div>${event.event_type} — ${event.actor}</div>
+          <div class="audit-meta">${new Date(event.created_at + "Z").toLocaleString()}</div>
+        </div>`
+        )
+        .join("")
+    : `<p class="control-hint">${t("audit_empty")}</p>`;
+
+  controlBodyEl.innerHTML = `
+    <div class="control-section">
+      <h3>${t("autonomy_heading")}</h3>
+      <div class="control-row"><span>${autonomyRow.level}</span><span class="value">${
+    autonomyRow.skills_allowed ? t("autonomy_skills_yes") : t("autonomy_skills_no")
+  }</span></div>
+      <p class="control-hint">${autonomyRow.description}</p>
+      <p class="control-hint">${t("autonomy_change_hint")}</p>
+    </div>
+    <div class="control-section">
+      <h3>${t("own_model_heading")}</h3>
+      <div class="control-row"><span>${t("corpus_size_label")}</span><span class="value">${own.corpus_size}</span></div>
+      <div class="control-row"><span>${t("unused_examples_label")}</span><span class="value">${own.unused_examples}</span></div>
+      <div class="control-row"><span>${t("checkpoint_label")}</span><span class="value">${
+    own.checkpoint_exists ? t("checkpoint_yes") : t("checkpoint_no")
+  }</span></div>
+      <div class="control-row"><span>${t("last_run_label")}</span><span class="value">${lastRunText}</span></div>
+    </div>
+    <div class="control-section">
+      <h3>${t("audit_heading")}</h3>
+      ${auditHtml}
+    </div>
+  `;
+}
+
+async function loadControlPanel() {
+  controlBodyEl.innerHTML = `<p>${t("control_loading")}</p>`;
+  try {
+    const [statusResponse, auditResponse] = await Promise.all([
+      fetch("/status"),
+      fetch("/audit?limit=8"),
+    ]);
+    if (!statusResponse.ok || !auditResponse.ok) throw new Error("bad response");
+    const statusData = await statusResponse.json();
+    const auditEvents = await auditResponse.json();
+    renderControlPanel(statusData, auditEvents);
+  } catch {
+    controlBodyEl.innerHTML = `<p class="control-hint">${t("control_error")}</p>`;
+  }
+}
+
+function openControlPanel() {
+  controlOverlayEl.classList.remove("hidden");
+  loadControlPanel();
+}
+
+function closeControlPanel() {
+  controlOverlayEl.classList.add("hidden");
+}
+
+if (controlToggleEl) {
+  controlToggleEl.addEventListener("click", openControlPanel);
+  controlCloseEl.addEventListener("click", closeControlPanel);
+  controlOverlayEl.addEventListener("click", (event) => {
+    if (event.target === controlOverlayEl) closeControlPanel();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !controlOverlayEl.classList.contains("hidden")) closeControlPanel();
+  });
+}
