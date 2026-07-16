@@ -5,6 +5,34 @@ and grow your own model over time — start to finish, one document. Already
 installed and just want day-to-day usage (not install)? See `docs/USAGE.md`
 instead.
 
+## The absolute short version
+
+Two moving parts, pick how you want to see them:
+
+- **The engine** — a Python program that actually talks to the AI model.
+  Something has to run it; it does the real work.
+- **A window to look at it through** — either your normal web browser, or
+  a real native app window (`kafkaf-desktop`). Both show the exact same
+  chat.
+
+You need **exactly one command running**, not several:
+
+- Want a browser tab? Run `kafkaf-server`, then open
+  `http://localhost:8420`. Leave that terminal window open — closing it
+  stops the engine.
+- Want a real app window instead? Run `kafkaf-desktop` **and nothing
+  else** — it starts the engine for you, inside itself, automatically.
+  Do not also run `kafkaf-server` in another window; you'd just have two
+  engines fighting over the same address.
+
+Everything below this point is detail for once that's working — installing
+in the first place, VPS deployment, teaching your own model, and every
+other interface. If a code block below shows two lines, they are **two
+separate commands** — run the first, wait for it to finish, then run the
+second on its own line. The English word "then" appearing in a sentence
+between two commands is just prose connecting them, never something to
+type into the terminal.
+
 ## What you're actually installing
 
 KafKaf is a free, self-hosted AI platform that runs on your own machine or
@@ -85,11 +113,16 @@ growing model are shared across all of them.
 
 | Interface | How |
 |---|---|
-| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or the council/skills toggles for the modes below. |
-| **CLI** | `pip install -e .` then `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to talk to your own model, `--council` to fan out to every `KAFKAF_COUNCIL_BRAINS` brain, or `--skills` to let it use tools. |
-| **Desktop app** | `pip install -e ".[desktop]"` then `kafkaf-desktop` — a native window, same GUI. Or download a pre-built executable from the "Build desktop app" GitHub Actions workflow. |
+| **Web GUI** | Open the URL from step 1 in any browser. Use the model dropdown to switch between the default chat model and "your own" model, or the council/skills toggles for the modes below. The 🎛️ button opens a live Control Panel (autonomy level, own-model training progress, recent activity). |
+| **CLI** | Run `pip install -e .`. Then, as a separate command, run `kafkaf chat "hello"` (one-shot) or `kafkaf repl` (interactive terminal session). Add `--brain own` to talk to your own model, `--council` to fan out to every `KAFKAF_COUNCIL_BRAINS` brain, or `--skills` to let it use tools. |
+| **Desktop app** ⭐ easiest | Run `pip install -e ".[desktop]"`. Then, as a separate command, run `kafkaf-desktop`. That single command opens a real native window **and starts its own backend automatically** — you do *not* need `kafkaf-server` running in another window too; pick this one command, or the browser option in step 1, not both. Or download a pre-built executable from the "Build desktop app" GitHub Actions workflow. |
 | **API** | `POST /chat` with `{"message": "...", "brain": "own"}`, `{"council": true}`, or `{"skills": true}` — see `docs/ARCHITECTURE.md`. |
-| **MCP** (Claude Desktop/Code) | `pip install -e ".[mcp,train]"` then `kafkaf-mcp`, wired into `claude_desktop_config.json` — see `docs/SETUP.md`. This is also how you manually teach/train (below), not just chat. |
+| **MCP** (Claude Desktop/Code) | Run `pip install -e ".[mcp,train]"`. Then, as a separate command, run `kafkaf-mcp`, wired into `claude_desktop_config.json` — see `docs/SETUP.md`. This is also how you manually teach/train (below), not just chat. |
+
+> **Every "X. Then Y." above is two separate commands, not one.** Type the
+> first, press Enter, wait for it to finish, then type the second. Never
+> type the literal word "then" into the terminal — it isn't a real command
+> and PowerShell/bash will try (and fail) to treat it as one.
 
 **Council mode** — instead of one model answering, set
 `KAFKAF_COUNCIL_BRAINS=ollama:llama3,ollama:qwen3:4b` (add API models if

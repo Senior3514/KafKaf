@@ -38,10 +38,23 @@
         <span id="theme-icon" aria-hidden="true">🌓</span>
       </button>
       <button type="button" id="lang-toggle" class="icon-btn lang-btn">EN</button>
+      <button type="button" id="control-toggle" class="icon-btn" data-i18n-aria="control_aria">🎛️</button>
     </div>
   </header>
 
   <main id="chat" class="chat" role="log" aria-live="polite"></main>
+
+  <div id="control-overlay" class="control-overlay hidden">
+    <div class="control-panel" role="dialog" aria-modal="true" data-i18n-aria="control_title">
+      <div class="control-panel-header">
+        <h2 data-i18n="control_title">בקרה ומצב המערכת</h2>
+        <button type="button" id="control-close" class="icon-btn" data-i18n-aria="control_close">✕</button>
+      </div>
+      <div id="control-body" class="control-body">
+        <p data-i18n="control_loading">טוען...</p>
+      </div>
+    </div>
+  </div>
 
   <form id="composer" class="composer" data-i18n-aria="composer_aria">
     <label for="message" class="visually-hidden" data-i18n="message_label">הודעה</label>

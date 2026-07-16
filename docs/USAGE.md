@@ -18,13 +18,19 @@ conversation history per `session_id`, so switching between them mid-chat
 is fine.
 
 **Prefer a native window over a browser tab?** It's a real, already-built
-desktop app, not just the web GUI in disguise — run it directly:
+desktop app, not just the web GUI in disguise — run it directly (two
+separate commands, run one after the other finishes):
 ```bash
 pip install -e ".[desktop]"
 kafkaf-desktop
 ```
-Opens a native OS window (no browser chrome) wrapping the same backend. See
-`docs/SETUP.md#desktop-app` for pre-built executables.
+`kafkaf-desktop` opens a native OS window (no browser chrome) **and starts
+its own backend automatically** — you do not also need `kafkaf-server`
+running in a second window. Pick one or the other: the browser at
+`http://localhost:8420` (needs `kafkaf-server` running), or this single
+`kafkaf-desktop` command (needs nothing else running). See
+`docs/SETUP.md#desktop-app` for pre-built executables that don't need
+Python installed at all.
 
 **Language and theme**: the web GUI's header has a language toggle
 (עב/EN — switches the whole UI, never mixed Hebrew+English) and a theme
