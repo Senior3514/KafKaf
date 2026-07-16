@@ -215,7 +215,7 @@ formEl.addEventListener("submit", async (event) => {
 
 const THEME_KEY = "kafkaf-theme";
 const GEO_KEY = "kafkaf-geo";
-const THEME_ORDER = ["light", "dark", "auto"];
+const THEME_ORDER = ["light", "dark", "sunset", "auto"];
 const themeToggleEl = document.getElementById("theme-toggle");
 const themeIconEl = document.getElementById("theme-icon");
 let autoRefreshTimer = null;
@@ -332,13 +332,18 @@ function applyTheme(theme) {
   clearInterval(autoRefreshTimer);
   if (theme === "light") applyResolvedTheme(false);
   else if (theme === "dark") applyResolvedTheme(true);
-  else {
+  else if (theme === "sunset") {
+    // A real, distinct color palette — not related to time of day or
+    // location in any way, just like light/dark. See style.css
+    // :root[data-theme="sunset"].
+    document.documentElement.setAttribute("data-theme", "sunset");
+  } else {
     resolveAutoTheme();
     // Re-check periodically so a page left open across an actual sunset
     // still switches, without needing a reload.
     autoRefreshTimer = setInterval(resolveAutoTheme, 5 * 60 * 1000);
   }
-  if (themeIconEl) themeIconEl.textContent = { light: "☀️", dark: "🌙", auto: "🌅" }[theme];
+  if (themeIconEl) themeIconEl.textContent = { light: "☀️", dark: "🌙", sunset: "🌇", auto: "🕐" }[theme];
   // For "auto", resolveAutoTheme() above already set a more specific
   // real-location-vs-fallback label — don't overwrite it with a generic one.
   if (theme !== "auto") updateThemeButtonLabel();

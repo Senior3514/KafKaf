@@ -34,10 +34,13 @@ Python installed at all.
 
 **Language and theme**: the web GUI's header has a language toggle
 (עב/EN — switches the whole UI, never mixed Hebrew+English) and a theme
-toggle (☀️ Light / 🌙 Dark / 🌅 Auto, where Auto follows the real local
-sunset/sunrise, not just a fixed clock time). Both choices persist across
-visits. Auto only ever asks for your location once you explicitly pick it —
-never automatically on page load.
+toggle with four options: ☀️ Light, 🌙 Dark, 🌇 Sunset (a real distinct
+warm-toned color palette — not tied to time of day or location at all,
+just like Light and Dark), and 🕐 Auto (day/night switching based on the
+real local sunset/sunrise time, not just a fixed clock — this is the one
+that involves location). All choices persist across visits. Auto only
+ever asks for your location once you explicitly pick it — never
+automatically on page load.
 
 **The Control Panel** (the sliders icon in the header) is the "what is this
 actually allowed to do, and what has it learned" view, live, in the app

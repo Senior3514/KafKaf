@@ -612,6 +612,31 @@ depends on a big-bang release — "grow it over time."
       total. Separately: a screenshot sent as evidence turned out to be a
       screenshot of this Claude Code conversation itself, not of KafKaf —
       flagged honestly rather than analyzed as if it were the app.
+- [x] **Phase 22 — "Sunset" was never supposed to be about location**: the
+      user's blunt correction after phase 21's transparency fix — "the
+      sunset has really really nothing to do with location, what's the
+      connection?! it's about a color theme" — revealed a genuine
+      misread going all the way back to when the theme toggle was first
+      built: "Auto (sunset)" was implemented as a geolocation-based real
+      sunrise/sunset light/dark switcher, but "sunset mode" was meant as a
+      **distinct warm-toned visual color palette**, the same category of
+      choice as Light or Dark, with zero relationship to time or
+      location. The astronomical auto-switcher itself wasn't wrong to
+      build, but naming and iconing it with "sunset" (🌅) directly caused
+      this confusion.
+
+      Fixed by building the actual thing: a real `sunset` theme in
+      `style.css` (warm plum-to-coral palette, `--accent: #ff7e5f`, plus a
+      gradient background on the chat area itself — not just swapped flat
+      colors, an actually distinct visual identity) as a fourth theme
+      option alongside Light/Dark, selectable and persisted exactly like
+      the other two, with no location or time logic involved at all. The
+      geolocation-based day/night switcher still exists and still works
+      (verified in phase 21) — relabeled "Auto (day/night by location)"
+      with a clock icon (🕐) instead of a sunset icon, so the two concepts
+      no longer share a name or a symbol. Live-verified with Playwright:
+      cycling to the sunset theme sets a real CSS gradient, distinct from
+      dark mode's flat background color.
 
 ## Deferred / future work
 

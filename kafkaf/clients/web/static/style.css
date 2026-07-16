@@ -55,6 +55,22 @@
   --error: #b3261e;
 }
 
+/* A real, distinct color theme — warm sunset tones, not a light/dark
+   switcher of any kind. Picked once, stays picked, exactly like light
+   and dark. */
+:root[data-theme="sunset"] {
+  --bg: #2d1b2e;
+  --surface: #3d2438;
+  --text: #fce8d5;
+  --muted: #d19a7a;
+  --border: #5a3548;
+  --accent: #ff7e5f;
+  --bubble-user: #ff7e5f;
+  --bubble-user-text: #2d1b2e;
+  --bubble-assistant: #3d2438;
+  --error: #ff6b6b;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -82,6 +98,11 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+:root[data-theme="sunset"] body {
+  background: linear-gradient(180deg, #4a2545 0%, #6b3358 35%, #b8563f 75%, #ff7e5f 100%);
+  background-attachment: fixed;
 }
 
 .topbar {
