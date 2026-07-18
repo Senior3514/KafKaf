@@ -861,6 +861,47 @@ depends on a big-bang release — "grow it over time."
       confirmed capped at 720px, the Control Panel confirmed still
       functioning unmodified.
 
+- [x] **Phase 31 — A read-only, JS-executing browser skill, the second of
+      the four safe increments**: `browser_render` (twenty-first skill,
+      optional `browser` extra — `playwright`, lazily imported like
+      `torch`/`mcp`). Renders a page in a real headless browser and
+      returns its visible text, for JS-heavy pages `web_fetch`'s raw HTTP
+      GET can't read. Never clicks, fills a form, or submits anything —
+      those Playwright APIs are simply never called anywhere in the
+      skill. The one real action surface a page can still reach for —
+      client-side navigation, e.g. a `location.href = ...` on a timer,
+      triggered after the page loads — is closed two ways: the visible
+      text is captured the instant the initial `goto()` resolves, with no
+      artificial delay that would give a delayed redirect a window to
+      fire; and `page.route()` blocks any main-frame navigation request
+      from that instant on, as a backstop against a near-zero-delay one
+      racing the capture. (First attempt used an artificial settle delay
+      before capturing, specifically to give a delayed redirect a chance
+      to be caught by the block — live-tested and found it actually made
+      things *worse*: aborting a navigation the page had already
+      committed to left the browser on a Chrome error page instead of the
+      original content. Capturing immediately, with the route-block only
+      as a backstop, avoided that failure mode entirely.) Redirects that
+      happen *during* the initial load itself (http → https, a URL
+      shortener's chain) are unaffected — `goto()` only resolves once
+      that's settled, so they're the normal result of the one navigation
+      asked for.
+
+      Verified against a real local HTTP server (not a live internet
+      site, for determinism) serving a page whose JS attempts a
+      client-side redirect to a second, distinct "evil" page 50ms after
+      load: confirmed the returned text is the original page's content,
+      the evil page's content never appears, and the browser's final URL
+      never became the evil page's — proving the guard holds, not just
+      asserting it does. A second test proves the skill genuinely
+      executes JavaScript (content set via a `<script>` tag, not present
+      in the raw HTML), the actual capability `web_fetch` lacks. Tests
+      for missing-dependency and invalid-input paths need no real
+      browser; the two guard tests need a working chromium binary
+      (`playwright install chromium` — a real binary, not just the pip
+      package) and skip cleanly without one, mirroring
+      `torch = pytest.importorskip("torch")` elsewhere in this suite.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

@@ -24,6 +24,11 @@ desktop = ["pywebview>=5.0"]
 # already running, which fails on Windows with a file-in-use error (the
 # console-script wrapper can't be overwritten while its process is live).
 desktop-full = ["kafkaf[desktop,train]"]
+# For the browser_render skill only -- a locked-down, read-only headless
+# browser for JS-heavy pages web_fetch can't render. Needs a separate
+# `playwright install chromium` after this (a real browser binary, not a
+# pip package) -- documented in docs/SETUP.md.
+browser = ["playwright>=1.40"]
 
 [project.scripts]
 kafkaf = "kafkaf.clients.cli.main:app"

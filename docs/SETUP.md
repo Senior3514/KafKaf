@@ -423,12 +423,15 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The twenty skills that ship today, all working with no API key required:
+The twenty-one skills that ship today, all working with no API key
+required (`browser_render` additionally needs the optional `browser`
+extra — see below the table):
 
 | Skill | What it does |
 |---|---|
 | `web_search` | Search the web (DuckDuckGo, no key) |
-| `web_fetch` | Fetch a URL's readable text |
+| `web_fetch` | Fetch a URL's readable text (raw HTTP, no JS rendering) |
+| `browser_render` | Render a JS-heavy page in a real, locked-down browser and return its visible text — for pages `web_fetch` can't read |
 | `calculator` | Safe math evaluation (never `eval`/`exec`) |
 | `current_datetime` | The current UTC date/time |
 | `memory_search` | Search what the own model has already been taught |
@@ -447,6 +450,20 @@ The twenty skills that ship today, all working with no API key required:
 | `hash_text` | md5/sha1/sha256 of a piece of text |
 | `random_pick` | Dice rolls or picking randomly from a list of options |
 | `text_stats` | Word/character/sentence count and estimated reading time |
+
+`browser_render` needs the optional `browser` extra, and a real browser
+binary on top of that (a `pip install` alone isn't enough — same
+two-step shape as `[train]`'s torch):
+```
+pip install -e ".[browser]"
+playwright install chromium
+```
+Without this, the skill gives a clean error naming the exact command,
+the same pattern as selecting the own model without `[train]` installed.
+It's deliberately read-only: it never clicks, fills a form, or submits
+anything (those Playwright APIs are simply never called), and it blocks
+any navigation the page itself tries to trigger after the initial load —
+the content it returns is always for the URL you gave it, nothing else.
 
 The sandboxed workspace for the `files`, `document_search`, `journal`, and
 `identity` skills defaults to `./workspace` — override with

@@ -1,4 +1,5 @@
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.browser_render import BrowserRenderSkill
 from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
 from kafkaf.core.skills.document_search import DocumentSearchSkill
@@ -23,6 +24,7 @@ from kafkaf.core.skills.web_search import WebSearchSkill
 ALL_SKILLS: list[Skill] = [
     WebSearchSkill(),
     WebFetchSkill(),
+    BrowserRenderSkill(),
     CalculatorSkill(),
     DateTimeSkill(),
     MemorySearchSkill(),
