@@ -88,6 +88,49 @@ code — these patterns are consistent on purpose, not incidental:
   calibrated to what was actually built and verified, not what would be
   impressive if true.
 
+## Backend DNA — apply to every service, schema, and route you touch
+
+Before shipping or modifying any backend component, confirm all three:
+
+- **Rate limiting.** Is this endpoint protected against high-frequency
+  abuse? `core/rate_limit.py`'s `RateLimitMiddleware` is applied globally
+  in `core/api.py` (`app.add_middleware(...)`), so any new route is
+  covered automatically unless it's added to the `/health`/`/static`
+  exemption list — don't add new exemptions without a specific reason.
+- **Caching.** Can this expensive operation be cached? LLM calls,
+  embeddings, slow third-party APIs, and heavy DB aggregations shouldn't
+  redundantly re-run for the same input in a short window. See
+  `core/skills/net_utils.py`'s `TTLCache` (used by `weather.py` — cached
+  by city, 10 min TTL — and `rss.py` — cached by feed URL, 5 min TTL) for
+  the pattern: a small in-memory dict with monotonic-clock expiry, correct
+  for KafKaf's single-process/single-user deployment model (same
+  reasoning as `rate_limit.py`'s in-memory counter — don't reach for
+  Redis/Memcached for this). Keep queries and payloads lean regardless of
+  caching — don't fetch more than the caller needs.
+- **Fault tolerance.** If a downstream dependency (third-party API,
+  internal service) fails, does the system degrade gracefully? Retry
+  transient failures with backoff rather than failing on the first
+  timeout — see `net_utils.py`'s `get_with_retry()` (retries connection
+  errors/timeouts/5xx, never a 4xx, since a bad request stays bad no
+  matter how many times it's repeated) used by `weather.py`, `rss.py`,
+  `web_search.py`, `web_fetch.py`. Never let a downstream failure surface
+  as a broken user-facing flow — `core/skills/loop.py` wraps every
+  `skill.run()` in a broad `except Exception` that turns a failure into a
+  clean `"error: ..."` observation instead of crashing the conversation;
+  `/chat`'s brain-resolution path in `core/api.py` does the same, turning
+  brain-call failures into a clean JSON error response, never a raw
+  non-JSON 500 (this exact bug class has shipped and been fixed three
+  times — see `docs/ROADMAP.md`'s phase 15/18/19 entries — match that
+  pattern rather than reintroducing a narrow `except` clause).
+
+Bias toward simplicity: solve the actual problem with a clear,
+deterministic, fast pipeline — no speculative abstraction layers.
+Performance is a feature; a slow correct answer is only half-solved.
+
+Apply this checklist silently as a habit on every backend change, not
+just as a one-time pass — it's part of how this codebase is written, not
+a phase that happened once.
+
 ## Security-sensitive changes
 
 Anything that expands what an automated part of the system (autopilot, a

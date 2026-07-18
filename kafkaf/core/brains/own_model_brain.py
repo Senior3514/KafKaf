@@ -34,7 +34,7 @@ class OwnModelBrain(Brain):
                 f"No trained checkpoint at {self.checkpoint_path} yet — "
                 "teach it something and run a training step first."
             )
-        checkpoint = torch.load(path, map_location="cpu")
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         self._config = GPTConfig(**checkpoint["config"])
         self._model = GPT(self._config)
         self._model.load_state_dict(checkpoint["model"])

@@ -638,6 +638,52 @@ depends on a big-bang release — "grow it over time."
       cycling to the sunset theme sets a real CSS gradient, distinct from
       dark mode's flat background color.
 
+- [x] **Phase 23 — A real security review instead of a marketing claim,
+      plus a durable "Backend DNA" checklist**: the user asked for "a deep
+      security codebase scan, zero risks, ignore none" — answered with an
+      actual code review, not a claim of pre-existing perfection. Two real
+      bugs found and fixed:
+      1. **Stored XSS** in the Control Panel: `app.js`'s
+         `renderControlPanel()` interpolated two attacker-reachable
+         strings straight into `.innerHTML` with no escaping —
+         `skills_workspace_dir` (settable via `POST /skills/workspace`,
+         survives `Path().resolve()` unsanitized) and the audit log's
+         `event_type`/`actor` (`actor` traces to `Brain.name`, fully
+         attacker-controlled via `POST /chat`'s `brain` field, e.g.
+         `"ollama:<img src=x onerror=...>"`). Fixed with a small
+         `escapeHtml()` helper applied at both sites; live-verified with
+         Playwright by actually POSTing a payload containing
+         `<img src=x onerror="window.__xss_fired=true">` as the workspace
+         directory and confirming it renders as literal escaped text in
+         the Control Panel with no script execution.
+      2. **Unhardened `torch.load()`** in `kafkaf/model/train.py` and
+         `kafkaf/core/brains/own_model_brain.py` — missing
+         `weights_only=True`, a documented PyTorch pickle-deserialization
+         risk. Both call sites hardened; checkpoint contents (a plain
+         tensor state dict plus a primitives-only config dict) are fully
+         compatible with the safe loader.
+
+      Separately, the user handed down a permanent "Backend DNA" checklist
+      (rate limiting / caching / fault tolerance / bias toward simplicity)
+      to apply to every backend change going forward, not just once — now
+      written into `CONTRIBUTING.md` as a standing section, not just
+      applied ad hoc this round. Auditing against it found rate limiting
+      already fully covered (the global `RateLimitMiddleware` in
+      `core/api.py` exempts only `/health`/`/static`) and ReAct-loop fault
+      tolerance already solid (`core/skills/loop.py`'s broad
+      `except Exception` around every `skill.run()`), but a real caching/
+      retry gap in the four skills that call third-party HTTP APIs
+      (`weather`, `rss`, `web_search`, `web_fetch`) — each made a single-
+      attempt call with no retry and no caching. Closed with a new shared
+      `core/skills/net_utils.py`: `get_with_retry()` (exponential backoff
+      on transport errors and 5xx only, never a 4xx — a bad request stays
+      bad no matter how many times it's repeated) and `TTLCache` (a tiny
+      in-memory cache, same single-process/single-user reasoning as
+      `rate_limit.py`'s in-memory counter). `weather.py` now caches by
+      city for 10 minutes, `rss.py` by feed URL for 5 minutes;
+      `web_search.py`/`web_fetch.py` get retry only, since queries/URLs
+      are typically unique per call.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

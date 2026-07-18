@@ -1,7 +1,10 @@
+import httpx
 import pytest
 
 from kafkaf.core.enrichment import store as enrichment_store
+from kafkaf.core.skills import rss as rss_module
 from kafkaf.core.skills import store as skills_store
+from kafkaf.core.skills import weather as weather_module
 from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
 from kafkaf.core.skills.document_search import DocumentSearchSkill
@@ -13,10 +16,12 @@ from kafkaf.core.skills.own_model_status import OwnModelStatusSkill
 from kafkaf.core.skills.password_generator import PasswordGeneratorSkill
 from kafkaf.core.skills.random_pick import RandomPickSkill
 from kafkaf.core.skills.reminders import RemindersSkill
+from kafkaf.core.skills.rss import RssSkill
 from kafkaf.core.skills.system_info import SystemInfoSkill
 from kafkaf.core.skills.text_diff import TextDiffSkill
 from kafkaf.core.skills.text_stats import TextStatsSkill
 from kafkaf.core.skills.unit_convert import UnitConvertSkill
+from kafkaf.core.skills.weather import WeatherSkill
 
 
 @pytest.fixture(autouse=True)
@@ -329,3 +334,65 @@ class TestTextStats:
     async def test_empty_error(self):
         result = await TextStatsSkill().run("")
         assert result.startswith("error:")
+
+
+class TestWeatherCaching:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        weather_module._cache._store.clear()
+        yield
+        weather_module._cache._store.clear()
+
+    @pytest.mark.asyncio
+    async def test_second_call_for_same_city_hits_the_cache(self, monkeypatch):
+        calls = {"n": 0}
+
+        async def fake_get(self, url, params=None, headers=None):
+            calls["n"] += 1
+            if "geocoding" in url:
+                payload = {"results": [{"name": "Tel Aviv", "latitude": 32.08, "longitude": 34.78}]}
+            else:
+                payload = {"current_weather": {"temperature": 25, "weathercode": 0, "windspeed": 10}}
+            return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+        first = await WeatherSkill().run("Tel Aviv")
+        second = await WeatherSkill().run("Tel Aviv")
+        assert first == second
+        assert calls["n"] == 2  # only the first run makes the geocode + forecast calls
+
+    @pytest.mark.asyncio
+    async def test_missing_city_gives_a_clean_error(self, monkeypatch):
+        async def fake_get(self, url, params=None, headers=None):
+            return httpx.Response(200, json={"results": None}, request=httpx.Request("GET", url))
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+        result = await WeatherSkill().run("Nonexistentville")
+        assert result.startswith("error:")
+
+
+class TestRssCaching:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        rss_module._cache._store.clear()
+        yield
+        rss_module._cache._store.clear()
+
+    @pytest.mark.asyncio
+    async def test_second_fetch_of_same_feed_hits_the_cache(self, monkeypatch):
+        calls = {"n": 0}
+        feed_xml = (
+            "<rss><channel><item><title>Hello</title>"
+            "<link>https://example.com/a</link></item></channel></rss>"
+        )
+
+        async def fake_get(self, url, params=None, headers=None):
+            calls["n"] += 1
+            return httpx.Response(200, text=feed_xml, request=httpx.Request("GET", url))
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+        first = await RssSkill().run("https://example.com/feed.xml")
+        second = await RssSkill().run("https://example.com/feed.xml")
+        assert first == second
+        assert "Hello" in first
+        assert calls["n"] == 1

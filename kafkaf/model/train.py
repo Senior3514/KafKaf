@@ -20,7 +20,7 @@ def _device() -> str:
 def _load_or_init_model(checkpoint_path: str, preset_name: str) -> tuple[GPT, GPTConfig]:
     path = Path(checkpoint_path)
     if path.exists():
-        checkpoint = torch.load(path, map_location="cpu")
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         config = GPTConfig(**checkpoint["config"])
         model = GPT(config)
         model.load_state_dict(checkpoint["model"])
