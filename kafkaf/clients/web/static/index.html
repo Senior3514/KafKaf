@@ -15,46 +15,54 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <svg class="logo" viewBox="0 0 100 100" width="30" height="30" aria-hidden="true">
-        <path class="logo-sole" d="M50 8 C68 8 79 23 77 41 C75 60 69 92 50 92 C31 92 25 60 23 41 C21 23 32 8 50 8 Z" />
-        <path class="logo-strap" d="M50 25 Q37 33 29 46 M50 25 Q63 33 71 46" />
-        <circle class="logo-strap-post" cx="50" cy="25" r="4.5" />
-      </svg>
-      <span class="brand-name">KafKaf</span>
-    </div>
-    <div class="model-controls" role="group" data-i18n-aria="settings_group">
-      <select id="persona-select" class="brain-select" data-i18n-aria="persona_aria" data-i18n-title="persona_title">
-        <option value="default" data-i18n="persona_default">Kaf (ברירת מחדל)</option>
-        <option value="researcher">Researcher</option>
-        <option value="coach">Coach</option>
-      </select>
-      <select id="brain-select" class="brain-select" data-i18n-aria="brain_aria" data-i18n-title="brain_title">
-        <option value="" data-i18n="brain_default">מודל ברירת מחדל (Ollama)</option>
-        <option value="own" data-i18n="brain_own">המודל שלנו (גדל עם הזמן)</option>
-      </select>
-      <label class="council-toggle" data-i18n-title="council_title">
-        <input type="checkbox" id="council-toggle" />
-        <span data-i18n="council_label">מועצת מוחות</span>
-      </label>
-      <label class="council-toggle" data-i18n-title="skills_title">
-        <input type="checkbox" id="skills-toggle" />
-        <span data-i18n="skills_label">סקילים</span>
-      </label>
-      <button type="button" id="theme-toggle" class="icon-btn" data-i18n-aria="theme_aria">
-        <span id="theme-icon" aria-hidden="true">🌓</span>
-      </button>
-      <button type="button" id="lang-toggle" class="icon-btn lang-btn">EN</button>
-      <button type="button" id="control-toggle" class="icon-btn" data-i18n-aria="control_aria" data-i18n-title="control_title_tip">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="5" y1="4" x2="5" y2="20" />
-          <circle cx="5" cy="9" r="2" fill="currentColor" stroke="none" />
-          <line x1="12" y1="4" x2="12" y2="20" />
-          <circle cx="12" cy="15" r="2" fill="currentColor" stroke="none" />
-          <line x1="19" y1="4" x2="19" y2="20" />
-          <circle cx="19" cy="7" r="2" fill="currentColor" stroke="none" />
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 100 100" width="30" height="30" aria-hidden="true">
+          <path class="logo-sole" d="M50 8 C68 8 79 23 77 41 C75 60 69 92 50 92 C31 92 25 60 23 41 C21 23 32 8 50 8 Z" />
+          <path class="logo-strap" d="M50 25 Q37 33 29 46 M50 25 Q63 33 71 46" />
+          <circle class="logo-strap-post" cx="50" cy="25" r="4.5" />
         </svg>
-      </button>
+        <span class="brand-name">KafKaf</span>
+      </div>
+      <div class="model-controls" role="group" data-i18n-aria="settings_group">
+        <div class="control-group">
+          <select id="persona-select" class="brain-select" data-i18n-aria="persona_aria" data-i18n-title="persona_title">
+            <option value="default" data-i18n="persona_default">Kaf (ברירת מחדל)</option>
+            <option value="researcher">Researcher</option>
+            <option value="coach">Coach</option>
+          </select>
+          <select id="brain-select" class="brain-select" data-i18n-aria="brain_aria" data-i18n-title="brain_title">
+            <option value="" data-i18n="brain_default">מודל ברירת מחדל (Ollama)</option>
+            <option value="own" data-i18n="brain_own">המודל שלנו (גדל עם הזמן)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label class="council-toggle" data-i18n-title="council_title">
+            <input type="checkbox" id="council-toggle" />
+            <span data-i18n="council_label">מועצת מוחות</span>
+          </label>
+          <label class="council-toggle" data-i18n-title="skills_title">
+            <input type="checkbox" id="skills-toggle" />
+            <span data-i18n="skills_label">סקילים</span>
+          </label>
+        </div>
+        <div class="control-group">
+          <button type="button" id="theme-toggle" class="icon-btn" data-i18n-aria="theme_aria">
+            <span id="theme-icon" aria-hidden="true">🌓</span>
+          </button>
+          <button type="button" id="lang-toggle" class="icon-btn lang-btn">EN</button>
+          <button type="button" id="control-toggle" class="icon-btn" data-i18n-aria="control_aria" data-i18n-title="control_title_tip">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="5" y1="4" x2="5" y2="20" />
+              <circle cx="5" cy="9" r="2" fill="currentColor" stroke="none" />
+              <line x1="12" y1="4" x2="12" y2="20" />
+              <circle cx="12" cy="15" r="2" fill="currentColor" stroke="none" />
+              <line x1="19" y1="4" x2="19" y2="20" />
+              <circle cx="19" cy="7" r="2" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -75,16 +83,18 @@
   </div>
 
   <form id="composer" class="composer" data-i18n-aria="composer_aria">
-    <label for="message" class="visually-hidden" data-i18n="message_label">הודעה</label>
-    <textarea
-      id="message"
-      class="message-input"
-      data-i18n-placeholder="message_placeholder"
-      placeholder="כתבו הודעה..."
-      rows="1"
-      autofocus
-    ></textarea>
-    <button type="submit" class="send-btn" data-i18n-aria="send_aria">➤</button>
+    <div class="composer-inner">
+      <label for="message" class="visually-hidden" data-i18n="message_label">הודעה</label>
+      <textarea
+        id="message"
+        class="message-input"
+        data-i18n-placeholder="message_placeholder"
+        placeholder="כתבו הודעה..."
+        rows="1"
+        autofocus
+      ></textarea>
+      <button type="submit" class="send-btn" data-i18n-aria="send_aria">➤</button>
+    </div>
   </form>
 
   <script src="/static/i18n.js"></script>

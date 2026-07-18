@@ -827,6 +827,40 @@ depends on a big-bang release — "grow it over time."
       redesign is real, deliberate design work, done a piece at a time
       with verification each round rather than all at once unverified.
 
+- [x] **Phase 30 — A real GUI redesign, and a final answer on "build
+      Hermes Agent"**: this was the fourth time this session the user
+      asked for KafKaf to become an unattended, whole-system agent (open
+      apps, drive a browser, execute code, zero per-action confirmation).
+      Documented the final assessment plainly rather than re-litigating
+      it again: `autopilot` is architected to run unattended by design, so
+      "the user is always there" isn't true of the system as built; the
+      skills ReAct loop has no per-call approval gate; and — worth stating
+      since it's directly relevant to "copy the cited product" — Hermes
+      Agent's own security record (multiple CVEs reported in a short
+      window after release, a "trust at install, sandbox at runtime" gap)
+      is now direct evidence *for* this caution, not against it. Not
+      reopened by a fifth ask alone; would need a genuinely new, concrete
+      technical spec.
+
+      Asked the user to sequence four real, safe increments toward the
+      same underlying ambition instead — they chose "all four, GUI
+      redesign first." This round: the actual redesign, not more
+      incremental polish. New design-token scale (`--space-*`,
+      `--radius-*`, `--content-width`) reused everywhere instead of
+      one-off pixel values; the topbar's seven controls (persona, brain,
+      council, skills, theme, language, control-panel) regrouped into
+      three visually distinct clusters with subtle dividers instead of one
+      undifferentiated row; chat, composer, and topbar now share a
+      720px-max centered content column, so wide desktop/browser windows
+      no longer stretch the conversation edge-to-edge — closer to how
+      Claude's own interface reads on a wide screen. No element IDs
+      changed, so `app.js`'s existing `getElementById` wiring and every
+      existing test kept working untouched. Verified live with Playwright
+      across mobile and wide-desktop viewports, both languages, and all
+      four themes — zero horizontal overflow, the content column
+      confirmed capped at 720px, the Control Panel confirmed still
+      functioning unmodified.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
