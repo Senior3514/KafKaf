@@ -248,6 +248,33 @@ def test_set_autonomy_rejects_unknown_level():
     assert "godmode" in response.json()["detail"]
 
 
+def test_autopilot_stop_resume_from_the_gui(monkeypatch, tmp_path):
+    """The Control Panel's Emergency Stop button — same stop-file mechanism
+    as kafkaf-autopilot-ctl, no terminal needed. Also reported in /status
+    so the panel renders live state in one call."""
+    stop_file = str(tmp_path / "autopilot.stop")
+    monkeypatch.setenv("AUTOPILOT_STOP_FILE", stop_file)
+
+    with TestClient(app) as client:
+        assert client.get("/autopilot/status").json()["stopped"] is False
+        assert client.get("/status").json()["autopilot"]["stopped"] is False
+
+        stop_response = client.post("/autopilot/stop")
+        assert stop_response.status_code == 200
+        assert stop_response.json()["stopped"] is True
+        assert client.get("/autopilot/status").json()["stopped"] is True
+        assert client.get("/status").json()["autopilot"]["stopped"] is True
+
+        resume_response = client.post("/autopilot/resume")
+        assert resume_response.status_code == 200
+        assert resume_response.json()["stopped"] is False
+        assert client.get("/autopilot/status").json()["stopped"] is False
+
+        event_types = [e["event_type"] for e in client.get("/audit").json()]
+    assert "autopilot_stop" in event_types
+    assert "autopilot_resume" in event_types
+
+
 def test_set_skills_workspace_changes_the_sandbox_root(monkeypatch, tmp_path):
     """The 'pick one directory, like Claude Code's cwd' model — this must
     move the sandbox root live, and files/document_search/journal must

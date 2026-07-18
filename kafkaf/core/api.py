@@ -11,6 +11,7 @@ from kafkaf.core import autonomy, council
 from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
+from kafkaf.core.enrichment.autopilot import _default_stop_file, is_stop_requested
 from kafkaf.core.enrichment import service as enrichment_service
 from kafkaf.core.enrichment import store as enrichment_store
 from kafkaf.core.memory import store
@@ -207,6 +208,46 @@ async def set_autonomy(request: AutonomyRequest) -> dict:
     }
 
 
+@app.get("/autopilot/status")
+async def autopilot_status() -> dict:
+    """Whether an emergency stop is currently in effect for autopilot.
+    Uses the same stop-file the loop itself checks (AUTOPILOT_STOP_FILE
+    when set — e.g. /data/autopilot.stop in Docker, where the backend
+    shares the /data volume with the autopilot container)."""
+    stop_file = _default_stop_file()
+    return {"stopped": is_stop_requested(stop_file), "stop_file": stop_file}
+
+
+@app.post("/autopilot/stop")
+async def autopilot_stop() -> dict:
+    """Emergency stop from the GUI — same mechanism as
+    `kafkaf-autopilot-ctl stop`, no terminal needed. A running autopilot
+    halts within a few seconds; the stop persists until resumed."""
+    stop_file = _default_stop_file()
+    try:
+        Path(stop_file).touch()
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Couldn't write stop file {stop_file!r}: {exc}"
+        ) from exc
+    audit_store.log_event("autopilot_stop", "web", f"emergency stop requested via GUI ({stop_file!r})")
+    return {"stopped": True, "stop_file": stop_file}
+
+
+@app.post("/autopilot/resume")
+async def autopilot_resume() -> dict:
+    """Clear the emergency stop so autopilot can run again."""
+    stop_file = _default_stop_file()
+    try:
+        Path(stop_file).unlink(missing_ok=True)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Couldn't remove stop file {stop_file!r}: {exc}"
+        ) from exc
+    audit_store.log_event("autopilot_resume", "web", f"stop cleared via GUI ({stop_file!r})")
+    return {"stopped": False, "stop_file": stop_file}
+
+
 @app.post("/skills/workspace")
 async def set_skills_workspace(request: WorkspaceRequest) -> dict:
     """Point the filesystem-touching skills (files, document_search,
@@ -249,6 +290,7 @@ async def status() -> dict:
         "own_model": enrichment_service.get_status(),
         "default_teacher": f"ollama:{settings.ollama_model}",
         "skills_workspace_dir": settings.skills_workspace_dir,
+        "autopilot": {"stopped": is_stop_requested(_default_stop_file())},
     }
 
 

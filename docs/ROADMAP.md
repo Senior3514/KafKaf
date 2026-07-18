@@ -760,6 +760,37 @@ depends on a big-bang release — "grow it over time."
          own model reflecting on itself (which would produce noise). A
          failed reflection never kills the loop.
 
+- [x] **Phase 27 — The Emergency Stop becomes a button, and a GUI polish
+      pass**: the user's explicit direction — "enough with commands; if
+      I'm using a GUI, everything should be buttons and toggles." Now that
+      phase 26 made the stop-file mechanism actually work in Docker, it's
+      exposed in the product: `GET /autopilot/status`, `POST
+      /autopilot/stop`, `POST /autopilot/resume` on the backend (same
+      stop-file the loop checks; audit-logged with actor "web"), and a
+      live Autopilot section in the Control Panel — a green/red state
+      indicator and a single Emergency stop / Resume button, both
+      languages. In Docker, the autopilot overlay now also sets
+      `AUTOPILOT_STOP_FILE` on the *backend* container (both share
+      `/data`), so the GUI button controls the real separately-running
+      loop, not just a same-process one. `/status` includes the autopilot
+      state so the panel renders it with no extra round-trip. Verified
+      live with Playwright: click stop → state flips + backend confirms +
+      audit logs it → click resume → back to running; screenshotted in
+      Hebrew and English.
+
+      GUI polish in the same round, honestly scoped: hover states and
+      transitions on every interactive control (selects, icon buttons,
+      autonomy buttons, growth buttons), a slide-up animation + shadow on
+      the Control Panel (disabled under `prefers-reduced-motion`), and a
+      distinct outlined-red style for the emergency-stop button. On the
+      request for "fonts and graphics from anywhere in the world": KafKaf
+      deliberately loads **zero** external resources — no CDN fonts, no
+      remote graphics — because every remote fetch is a privacy leak in a
+      product whose whole promise is "private, self-hosted." The font
+      stack uses each OS's best native UI font instead; a *bundled* open
+      font (shipped in the repo, no network) is the acceptable future
+      upgrade if wanted.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
