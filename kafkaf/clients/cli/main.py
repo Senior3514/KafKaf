@@ -123,14 +123,46 @@ def audit(
 
 
 @app.command()
-def autonomy(url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL.")) -> None:
-    """Show the current autonomy level (observe/assisted/autonomous) and what it unlocks."""
-    response = httpx.get(f"{url}/autonomy", timeout=30.0)
-    response.raise_for_status()
+def autonomy(
+    set_level: str = typer.Option(
+        None, "--set", help="Change the autonomy level (observe/assisted/autonomous) for the running backend."
+    ),
+    url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
+) -> None:
+    """Show, or change, the current autonomy level and what it unlocks."""
+    if set_level:
+        response = httpx.post(f"{url}/autonomy", json={"level": set_level}, timeout=30.0)
+        if response.is_error:
+            detail = response.json().get("detail", response.text) if response.text else response.text
+            raise httpx.HTTPStatusError(detail, request=response.request, response=response)
+    else:
+        response = httpx.get(f"{url}/autonomy", timeout=30.0)
+        response.raise_for_status()
     info = response.json()
     typer.echo(f"level: {info['level']}")
     typer.echo(f"skills allowed: {info['skills_allowed']}")
     typer.echo(info["description"])
+
+
+@app.command()
+def workspace(
+    set_path: str = typer.Option(
+        None, "--set", help="Point filesystem-touching skills (files, document_search, journal) at this directory."
+    ),
+    url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
+) -> None:
+    """Show, or change, the directory skills are sandboxed to — the same
+    "one directory you choose" model as Claude Code's own cwd."""
+    if set_path:
+        response = httpx.post(f"{url}/skills/workspace", json={"path": set_path}, timeout=30.0)
+        if response.is_error:
+            detail = response.json().get("detail", response.text) if response.text else response.text
+            raise httpx.HTTPStatusError(detail, request=response.request, response=response)
+        typer.echo(f"workspace: {response.json()['skills_workspace_dir']}")
+    else:
+        response = httpx.get(f"{url}/status", timeout=30.0)
+        response.raise_for_status()
+        typer.echo(f"workspace: {response.json()['skills_workspace_dir']}")
 
 
 if __name__ == "__main__":

@@ -123,6 +123,14 @@ audit` is the actual record — actor, duration, and a short summary for
 every event — so "what did the unattended loop do while I wasn't
 watching" always has a real answer, not just a log file to grep.
 
+`kafkaf autonomy --set <level>` changes it live, for the running backend
+process, no restart needed — the same switch the web GUI's Control Panel
+uses, just from the terminal. `kafkaf workspace` shows the directory
+filesystem-touching skills (`files`, `document_search`, `journal`) are
+sandboxed to; `kafkaf workspace --set <path>` points them at a different
+one you choose — one directory, same model as Claude Code's own cwd, not
+unrestricted access to the whole machine.
+
 ## Common day-to-day commands
 
 ```bash
@@ -134,6 +142,9 @@ kafkaf chat --skills "message"                 # tool use
 kafkaf chat --council --skills "message"       # both, combined
 kafkaf audit --event-type skill                # filter the audit log
 kafkaf autonomy                                # current autonomy level
+kafkaf autonomy --set assisted                 # change it live, no restart
+kafkaf workspace                               # current skills sandbox directory
+kafkaf workspace --set ~/Documents/kafkaf-work # point skills at a different directory
 ./deploy/update.sh                             # pull + rebuild, same mode as installed
 docker compose -f deploy/docker-compose.yml exec autopilot kafkaf-autopilot-ctl stop
 ```

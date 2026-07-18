@@ -212,6 +212,15 @@ CI workflow for the exact package list). Windows (WebView2) and macOS
 (WebKit) don't need any extra system packages — the OS provides the
 webview engine.
 
+**Windows note: close the desktop app before reinstalling/upgrading.**
+`pip install -e ".[...]"` rewrites the console-script wrapper
+(`kafkaf-desktop.exe` in `Scripts/`) for every entry point, and Windows
+won't let pip overwrite an `.exe` while its process is still running —
+you'll see `OSError: [WinError 32] The process cannot access the file
+because it is being used by another process`. Close the KafKaf window (or
+`taskkill /IM kafkaf-desktop.exe /F`) before running `pip install` again,
+whether that's adding an extra like `[train]` or pulling a new version.
+
 ## Manual / local development
 
 Requires Python 3.11+ and a locally running
