@@ -10,6 +10,7 @@ from kafkaf.core.skills.datetime_skill import DateTimeSkill
 from kafkaf.core.skills.document_search import DocumentSearchSkill
 from kafkaf.core.skills.files import FilesSkill
 from kafkaf.core.skills.hash_text import HashTextSkill
+from kafkaf.core.skills.identity import IdentitySkill
 from kafkaf.core.skills.journal import JournalSkill
 from kafkaf.core.skills.memory_search import MemorySearchSkill
 from kafkaf.core.skills.own_model_status import OwnModelStatusSkill
@@ -221,6 +222,40 @@ class TestJournal:
     @pytest.mark.asyncio
     async def test_unrecognized_command(self):
         result = await JournalSkill().run("delete everything")
+        assert result.startswith("error:")
+
+
+class TestIdentity:
+    @pytest.mark.asyncio
+    async def test_default_before_any_write(self):
+        result = await IdentitySkill().run("show")
+        assert "doesn't exist yet" in result
+
+    @pytest.mark.asyncio
+    async def test_write_then_show(self):
+        write_result = await IdentitySkill().run(
+            "write A curious, precise assistant that loves explaining things simply."
+        )
+        assert write_result == "identity updated"
+        show_result = await IdentitySkill().run("show")
+        assert "curious, precise assistant" in show_result
+
+    @pytest.mark.asyncio
+    async def test_write_replaces_not_appends(self):
+        await IdentitySkill().run("write first description")
+        await IdentitySkill().run("write second description")
+        result = await IdentitySkill().run("show")
+        assert "second description" in result
+        assert "first description" not in result
+
+    @pytest.mark.asyncio
+    async def test_empty_write_error(self):
+        result = await IdentitySkill().run("write ")
+        assert result.startswith("error:")
+
+    @pytest.mark.asyncio
+    async def test_unrecognized_command(self):
+        result = await IdentitySkill().run("delete everything")
         assert result.startswith("error:")
 
 

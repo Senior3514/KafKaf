@@ -791,6 +791,28 @@ depends on a big-bang release — "grow it over time."
       font (shipped in the repo, no network) is the acceptable future
       upgrade if wanted.
 
+- [x] **Phase 28 — An identity file, and the install/update guide made
+      permanent**: the user explicitly liked one idea from a longer,
+      broader ask ("files of soul, personality, thoughts") — built the
+      safe, concrete core of it: a new `identity` skill (twentieth skill),
+      mirroring `journal`'s sandboxed-file pattern exactly. `show` reads
+      `identity.md` from the chosen workspace (a bootstrap message
+      explaining it hasn't been written yet, if it doesn't exist);
+      `write <description>` replaces it with a new self-description. A
+      real, literal, inspectable file — not a database row — that the
+      model can read and update about itself through normal conversation
+      (assisted/autonomous autonomy, same as any other skill), separate
+      from the fixed persona presets. Deliberately narrow this round: no
+      autopilot wiring yet (seeding/auto-refreshing identity.md
+      unattended is a reasonable next step, not bundled in blind).
+
+      Also: the user asked for a short install *and* update guide to
+      always be present, not just once — restructured `README.md`'s top
+      section into one combined block covering both the Docker path and
+      the desktop/CLI pip path with their respective update commands,
+      replacing the update instructions that were previously buried in a
+      separate section further down the page.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
