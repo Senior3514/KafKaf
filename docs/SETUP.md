@@ -423,7 +423,7 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The nineteen skills that ship today, all working with no API key required:
+The twenty skills that ship today, all working with no API key required:
 
 | Skill | What it does |
 |---|---|
@@ -440,6 +440,7 @@ The nineteen skills that ship today, all working with no API key required:
 | `weather` | Current weather for a city (Open-Meteo, no key) |
 | `system_info` | Read-only snapshot of the machine KafKaf itself runs on (OS, Python, CPU, disk) |
 | `journal` | A private, timestamped notes log confined to the sandboxed workspace |
+| `identity` | KafKaf's persistent self-description file — who it is, what it's learned about itself |
 | `own_model_status` | How much the own model has learned so far — corpus size and last training run |
 | `password_generator` | A cryptographically secure random password (Python's `secrets`, never a weak PRNG) |
 | `text_diff` | Line-by-line differences between two pieces of text |
@@ -447,8 +448,8 @@ The nineteen skills that ship today, all working with no API key required:
 | `random_pick` | Dice rolls or picking randomly from a list of options |
 | `text_stats` | Word/character/sentence count and estimated reading time |
 
-The sandboxed workspace for the `files`, `document_search`, and `journal`
-skills defaults to `./workspace` — override with
+The sandboxed workspace for the `files`, `document_search`, `journal`, and
+`identity` skills defaults to `./workspace` — override with
 `KAFKAF_SKILLS_WORKSPACE_DIR`, or point it at any real directory you
 choose live from the web GUI's Control Panel ("Skills workspace
 directory") — the same "you pick one working directory" model as Claude

@@ -137,9 +137,10 @@ searching what's actually written in those files (keyword "RAG-lite," no
 vector DB), persistent reminders, unit conversion, RSS feeds, weather,
 searching what your own model has already been taught, a read-only system
 snapshot of the machine KafKaf itself runs on, a private timestamped
-journal, a report on how much the own model has actually learned so far,
+journal, a persistent self-description file it can read and update about
+itself, a report on how much the own model has actually learned so far,
 a secure password generator, a text-diff tool, text hashing, random
-picks/dice rolls, and text stats — nineteen skills, all working with no
+picks/dice rolls, and text stats — twenty skills, all working with no
 API key required. This is the
 ReAct pattern (ask a model to act, not just answer), and it works the same
 way regardless of which brain is answering. Combines with council mode too
