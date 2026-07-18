@@ -1,11 +1,11 @@
 import xml.etree.ElementTree as ET
 
-import httpx
-
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.net_utils import TTLCache, get_with_retry
 
 MAX_ITEMS = 5
 _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
+_cache = TTLCache(ttl_seconds=300)  # feeds update at most every few minutes in practice
 
 
 class RssSkill(Skill):
@@ -17,11 +17,14 @@ class RssSkill(Skill):
         if not url.startswith(("http://", "https://")):
             return "error: expected a feed URL starting with http:// or https://"
 
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(
-                url, headers={"User-Agent": "KafKaf/0.1 (+https://github.com/Senior3514/KafKaf)"}
-            )
-            response.raise_for_status()
+        cached = _cache.get(url)
+        if cached is not None:
+            return cached
+
+        response = await get_with_retry(
+            url, headers={"User-Agent": "KafKaf/0.1 (+https://github.com/Senior3514/KafKaf)"}
+        )
+        response.raise_for_status()
 
         try:
             root = ET.fromstring(response.text)
@@ -43,4 +46,6 @@ class RssSkill(Skill):
                 if title:
                     items.append(f"- {title} — {link}")
 
-        return "\n".join(items) if items else "no items found in feed"
+        result = "\n".join(items) if items else "no items found in feed"
+        _cache.set(url, result)
+        return result

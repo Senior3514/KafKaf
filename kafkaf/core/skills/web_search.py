@@ -7,9 +7,8 @@ results ever come back empty, that's the first thing to check.
 import html
 import re
 
-import httpx
-
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.net_utils import get_with_retry
 
 _RESULT_RE = re.compile(r'<a rel="nofollow" class="result__a" href="([^"]+)">(.*?)</a>', re.DOTALL)
 _SNIPPET_RE = re.compile(r'<a class="result__snippet"[^>]*>(.*?)</a>', re.DOTALL)
@@ -32,13 +31,12 @@ class WebSearchSkill(Skill):
         if not query:
             return "error: empty query"
 
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(
-                "https://html.duckduckgo.com/html/",
-                params={"q": query},
-                headers={"User-Agent": "KafKaf/0.1 (+https://github.com/Senior3514/KafKaf)"},
-            )
-            response.raise_for_status()
+        response = await get_with_retry(
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            headers={"User-Agent": "KafKaf/0.1 (+https://github.com/Senior3514/KafKaf)"},
+        )
+        response.raise_for_status()
 
         titles = _RESULT_RE.findall(response.text)
         snippets = _SNIPPET_RE.findall(response.text)

@@ -1,8 +1,9 @@
 """Current weather via Open-Meteo — free, no API key required."""
 
-import httpx
-
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.net_utils import TTLCache, get_with_retry
+
+_cache = TTLCache(ttl_seconds=600)  # weather doesn't change meaningfully faster than this
 
 _WEATHER_CODES = {
     0: "clear sky", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
@@ -24,34 +25,40 @@ class WeatherSkill(Skill):
         if not city:
             return "error: provide a city name"
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            geo = await client.get(
-                "https://geocoding-api.open-meteo.com/v1/search",
-                params={"name": city, "count": 1},
-            )
-            geo.raise_for_status()
-            results = geo.json().get("results")
-            if not results:
-                return f"error: could not find a location named {city!r}"
+        cache_key = city.lower()
+        cached = _cache.get(cache_key)
+        if cached is not None:
+            return cached
 
-            place = results[0]
-            forecast = await client.get(
-                "https://api.open-meteo.com/v1/forecast",
-                params={
-                    "latitude": place["latitude"],
-                    "longitude": place["longitude"],
-                    "current_weather": "true",
-                },
-            )
-            forecast.raise_for_status()
-            current = forecast.json().get("current_weather", {})
+        geo = await get_with_retry(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1},
+        )
+        geo.raise_for_status()
+        results = geo.json().get("results")
+        if not results:
+            return f"error: could not find a location named {city!r}"
+
+        place = results[0]
+        forecast = await get_with_retry(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": place["latitude"],
+                "longitude": place["longitude"],
+                "current_weather": "true",
+            },
+        )
+        forecast.raise_for_status()
+        current = forecast.json().get("current_weather", {})
 
         if not current:
             return "error: no current weather data available"
 
         code = current.get("weathercode")
         description = _WEATHER_CODES.get(code, f"code {code}")
-        return (
+        result = (
             f"{place.get('name', city)}: {current.get('temperature')}°C, "
             f"{description}, wind {current.get('windspeed')} km/h"
         )
+        _cache.set(cache_key, result)
+        return result

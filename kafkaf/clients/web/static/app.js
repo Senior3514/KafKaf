@@ -370,6 +370,15 @@ const controlOverlayEl = document.getElementById("control-overlay");
 const controlCloseEl = document.getElementById("control-close");
 const controlBodyEl = document.getElementById("control-body");
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function renderControlPanel(statusData, auditEvents) {
   const own = statusData.own_model;
   const autonomyRow = statusData.autonomy;
@@ -385,7 +394,7 @@ function renderControlPanel(statusData, auditEvents) {
         .map(
           (event) => `
         <div class="audit-item">
-          <div>${event.event_type} — ${event.actor}</div>
+          <div>${escapeHtml(event.event_type)} — ${escapeHtml(event.actor)}</div>
           <div class="audit-meta">${new Date(event.created_at + "Z").toLocaleString()}</div>
         </div>`
         )
@@ -446,7 +455,7 @@ function renderControlPanel(statusData, auditEvents) {
       <h3>${t("workspace_heading")}</h3>
       <p class="control-hint">${t("workspace_intro")}</p>
       <label class="growth-label">${t("workspace_current_label")}</label>
-      <p class="control-hint" style="word-break: break-all;">${statusData.skills_workspace_dir}</p>
+      <p class="control-hint" style="word-break: break-all;">${escapeHtml(statusData.skills_workspace_dir)}</p>
       <input id="workspace-input" class="growth-input" type="text" placeholder="${t("workspace_input_placeholder")}" />
       <div class="growth-actions">
         <button type="button" id="workspace-set-btn" class="growth-btn">${t("workspace_set_btn")}</button>

@@ -1,9 +1,8 @@
 import html
 import re
 
-import httpx
-
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.net_utils import get_with_retry
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _SCRIPT_STYLE_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
@@ -22,11 +21,10 @@ class WebFetchSkill(Skill):
         if not url.startswith(("http://", "https://")):
             return "error: expected a full URL starting with http:// or https://"
 
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(
-                url, headers={"User-Agent": "KafKaf/0.1 (+https://github.com/Senior3514/KafKaf)"}
-            )
-            response.raise_for_status()
+        response = await get_with_retry(
+            url, headers={"User-Agent": "KafKaf/0.1 (+https://github.com/Senior3514/KafKaf)"}
+        )
+        response.raise_for_status()
 
         text = _SCRIPT_STYLE_RE.sub(" ", response.text)
         text = _TAG_RE.sub(" ", text)
