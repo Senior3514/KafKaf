@@ -159,6 +159,12 @@ body {
   background: var(--bg);
   color: var(--text);
   min-width: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.brain-select:hover {
+  border-color: var(--accent);
 }
 
 .brain-select:focus-visible,
@@ -196,6 +202,11 @@ body {
   font-size: 0.9rem;
   line-height: 1;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--accent);
 }
 
 .icon-btn:focus-visible {
@@ -382,6 +393,25 @@ body {
   border-radius: 16px 16px 0 0;
   padding: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25);
+  animation: panel-rise 0.22s ease-out;
+}
+
+@keyframes panel-rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-panel {
+    animation: none;
+  }
 }
 
 .control-panel-header {
@@ -418,6 +448,11 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.autonomy-btn:hover:not(.active):not(:disabled) {
+  border-color: var(--accent);
 }
 
 .autonomy-btn.active {
@@ -456,6 +491,60 @@ body {
   font-size: 0.78rem;
   color: var(--muted);
   margin-top: 6px;
+}
+
+.autopilot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.autopilot-state {
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.autopilot-state.running::before,
+.autopilot-state.stopped::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-inline-end: 7px;
+  vertical-align: middle;
+}
+
+.autopilot-state.running::before {
+  background: #34c759;
+}
+
+.autopilot-state.stopped::before {
+  background: var(--error);
+}
+
+.emergency-stop-btn {
+  border: 1px solid var(--error);
+  background: transparent;
+  color: var(--error);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.emergency-stop-btn:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.emergency-stop-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .audit-item {
@@ -525,6 +614,12 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.growth-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
 }
 
 .growth-btn:disabled {

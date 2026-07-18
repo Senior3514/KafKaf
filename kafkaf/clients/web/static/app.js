@@ -421,6 +421,18 @@ function renderControlPanel(statusData, auditEvents) {
       <p class="control-hint">${t("autonomy_change_hint")}</p>
     </div>
     <div class="control-section">
+      <h3>${t("autopilot_heading")}</h3>
+      <div class="autopilot-row">
+        <span class="autopilot-state ${statusData.autopilot.stopped ? "stopped" : "running"}">${
+    statusData.autopilot.stopped ? t("autopilot_stopped") : t("autopilot_running")
+  }</span>
+        <button type="button" id="autopilot-toggle-btn" class="${
+    statusData.autopilot.stopped ? "growth-btn" : "emergency-stop-btn"
+  }">${statusData.autopilot.stopped ? t("autopilot_resume_btn") : t("autopilot_stop_btn")}</button>
+      </div>
+      <p class="control-hint">${t("autopilot_hint")}</p>
+    </div>
+    <div class="control-section">
       <h3>${t("own_model_heading")}</h3>
       <div class="control-row"><span>${t("corpus_size_label")}</span><span class="value">${own.corpus_size}</span></div>
       <div class="control-row"><span>${t("unused_examples_label")}</span><span class="value">${own.unused_examples}</span></div>
@@ -466,6 +478,20 @@ function renderControlPanel(statusData, auditEvents) {
   wireGrowPanel(statusData.default_teacher);
   wireAutonomyButtons();
   wireWorkspacePanel();
+  wireAutopilotButton(statusData.autopilot.stopped);
+}
+
+function wireAutopilotButton(currentlyStopped) {
+  const btnEl = document.getElementById("autopilot-toggle-btn");
+  if (!btnEl) return;
+  btnEl.addEventListener("click", async () => {
+    btnEl.disabled = true;
+    try {
+      await fetch(currentlyStopped ? "/autopilot/resume" : "/autopilot/stop", { method: "POST" });
+    } finally {
+      loadControlPanel();
+    }
+  });
 }
 
 function wireWorkspacePanel() {

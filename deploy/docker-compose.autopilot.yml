@@ -9,6 +9,14 @@
 # KAFKAF_AUTOPILOT_DYNAMIC_CURRICULUM (set to "1" to let the teacher propose
 # new topics once the starting list is exhausted).
 services:
+  # The web GUI's Emergency Stop button (POST /autopilot/stop) must touch
+  # the same stop file the autopilot loop checks — both containers share
+  # the /data volume, so pointing the backend at the same path makes the
+  # button real in Docker, not just for same-process local runs.
+  backend:
+    environment:
+      AUTOPILOT_STOP_FILE: /data/autopilot.stop
+
   autopilot:
     build:
       context: ..
