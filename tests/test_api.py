@@ -180,6 +180,30 @@ def test_audit_endpoint_returns_recent_events():
     assert any(e["event_type"] == "chat" and e["actor"] == "fake" for e in events)
 
 
+def test_unhandled_exception_anywhere_still_returns_clean_json(monkeypatch):
+    """The narrow-except-clause bug class (a raw, non-JSON 500 the web GUI
+    can't parse) has shipped three times as one-off fixes for three
+    different code paths (docs/ROADMAP.md phases 15/18/19), and was found
+    live a fourth time on /chat during a mid-request package reinstall —
+    a code path no specific except clause anticipated. Rather than add a
+    fourth one-off patch, a global @app.exception_handler(Exception) now
+    backstops every route. Proven here against a route with no try/except
+    of its own at all (/audit), so this isn't just re-testing an
+    already-covered path."""
+
+    def boom(limit: int, event_type: str | None = None):
+        raise RuntimeError("simulated failure with no matching except clause")
+
+    monkeypatch.setattr("kafkaf.core.api.audit_store.recent_events", boom)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/audit")
+    assert response.status_code == 500
+    body = response.json()
+    assert "detail" in body
+    assert "simulated failure" in body["detail"]
+
+
 def test_audit_endpoint_filters_by_event_type():
     with TestClient(app) as client:
         client.post("/chat", json={"message": "ping", "session_id": "audit-test-2"})

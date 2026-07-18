@@ -2,8 +2,8 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -31,6 +31,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="KafKaf", version="0.1.0", lifespan=lifespan)
 app.add_middleware(RateLimitMiddleware)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort backstop, not a substitute for specific error handling.
+    Every response from this API must be JSON, success or failure — the
+    web GUI's client always does response.json() and shows a clean error
+    bubble, never a raw framework error page. Route handlers should keep
+    catching what they can identify to give a useful, specific message
+    (see /chat's brain-resolution and council-call except clauses); this
+    exists because that same "narrow except clause misses a case" bug
+    class has shipped three times as one-off fixes for three different
+    code paths (docs/ROADMAP.md phases 15/18/19) — this is the structural
+    fix so a fourth still-unknown code path can't repeat it. Registering a
+    handler for the base Exception overrides Starlette's outermost
+    ServerErrorMiddleware, so this also catches exceptions raised in
+    middleware (e.g. RateLimitMiddleware), not just inside route bodies."""
+    reason = str(exc) or type(exc).__name__
+    return JSONResponse(status_code=500, content={"detail": f"Unexpected server error: {reason}"})
 
 
 class ChatRequest(BaseModel):
