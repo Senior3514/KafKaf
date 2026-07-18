@@ -4,6 +4,7 @@ from kafkaf.core.skills.datetime_skill import DateTimeSkill
 from kafkaf.core.skills.document_search import DocumentSearchSkill
 from kafkaf.core.skills.files import FilesSkill
 from kafkaf.core.skills.hash_text import HashTextSkill
+from kafkaf.core.skills.identity import IdentitySkill
 from kafkaf.core.skills.journal import JournalSkill
 from kafkaf.core.skills.memory_search import MemorySearchSkill
 from kafkaf.core.skills.own_model_status import OwnModelStatusSkill
@@ -33,6 +34,7 @@ ALL_SKILLS: list[Skill] = [
     WeatherSkill(),
     SystemInfoSkill(),
     JournalSkill(),
+    IdentitySkill(),
     OwnModelStatusSkill(),
     PasswordGeneratorSkill(),
     TextDiffSkill(),
