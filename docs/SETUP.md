@@ -193,6 +193,19 @@ pip install -e ".[desktop]"
 kafkaf-desktop
 ```
 
+Want "our own model" (the trainable, growing model — see
+[#own-model--enrichment-mcp-server](#own-model--enrichment-mcp-server))
+too? Install it up front, in the same command, instead of adding it later:
+
+```
+pip install -e ".[desktop-full]"   # desktop app + own-model training, one command
+kafkaf-desktop
+```
+
+Doing it this way — one command, before ever launching the app — avoids
+the Windows file-lock issue below entirely, since there's no second
+`pip install` to run while the app is already open.
+
 Pre-built single-file executables for Windows/macOS/Linux are produced by
 `.github/workflows/build-desktop.yml` on every `v*` tag (or manually via
 "Run workflow" in the Actions tab) — download them from that workflow
