@@ -240,11 +240,29 @@ body {
 
 .bubble {
   max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 16px;
-  line-height: 1.4;
+  padding: 11px 15px;
+  border-radius: 18px;
+  line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+  animation: bubble-in 0.18s ease-out;
+}
+
+@keyframes bubble-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    animation: none;
+  }
 }
 
 .bubble.user {
@@ -256,6 +274,7 @@ body {
      border-bottom-left-radius would flatten the wrong corner once dir
      flips. */
   border-end-end-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .bubble.assistant {
@@ -339,17 +358,20 @@ body {
   flex: 1;
   resize: none;
   max-height: 120px;
-  padding: 10px 14px;
-  border-radius: 20px;
+  padding: 11px 16px;
+  border-radius: 22px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
   font-size: 1rem;
   font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .message-input:focus {
-  outline: 2px solid var(--accent);
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .send-btn {
@@ -362,6 +384,16 @@ body {
   font-size: 1.1rem;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.send-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .send-btn:disabled {

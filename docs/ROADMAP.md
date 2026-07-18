@@ -813,6 +813,20 @@ depends on a big-bang release — "grow it over time."
       replacing the update instructions that were previously buried in a
       separate section further down the page.
 
+- [x] **Phase 29 — Second GUI polish pass: message bubbles and composer**:
+      continuing the "GUI should look like a real, modern chat app"
+      direction — bubbles now animate in on arrival (honoring
+      `prefers-reduced-motion`), the user bubble gets a subtle shadow for
+      depth, the message input shows a soft focus ring instead of a hard
+      outline, and the send button gets a hover/press micro-interaction
+      (scale + glow) instead of being static. Verified live with
+      Playwright — rounded-corner bubble geometry and a real focus-ring
+      box-shadow confirmed on the actual rendered page, not just read from
+      the stylesheet. This is incremental, not the full redesign; the
+      honest scope line from phase 27 still applies — a from-scratch visual
+      redesign is real, deliberate design work, done a piece at a time
+      with verification each round rather than all at once unverified.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
