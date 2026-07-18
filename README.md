@@ -21,18 +21,32 @@ This README is the short version. Already installed? **`docs/USAGE.md`**
 covers day-to-day use — chatting, personas, teaching your own model,
 checking what it's actually done.
 
-## Quick start — one command, every OS
+## Install / update — one command, every OS
 
 Requires [Docker](https://docs.docker.com/get-docker/) (Linux, macOS, and
-Windows via Docker Desktop all work identically):
+Windows via Docker Desktop all work identically).
 
+**First time?**
 ```
 python install.py
 ```
+Brings up Ollama + the KafKaf backend and pulls the default local model.
+Then open **http://localhost:8420** in a browser — that's it, no separate
+frontend build step.
 
-This brings up Ollama + the KafKaf backend and pulls the default local
-model. Then open **http://localhost:8420** in a browser for the web GUI —
-that's it, no separate frontend build step.
+**Already installed? Update to the latest version:**
+```
+./deploy/update.sh
+```
+Pulls the latest code and rebuilds/restarts — same command whether you're
+on a VPS or a local machine, and it remembers your `--tailscale`/autonomy
+choice from the first install automatically.
+
+Desktop app or CLI user instead (no Docker)? Update with:
+```
+git pull
+pip install -e ".[desktop]"   # or whichever extras you originally installed
+```
 
 ## Every interface
 
@@ -48,8 +62,8 @@ that's it, no separate frontend build step.
   OS via CI — see `.github/workflows/build-desktop.yml` and
   `docs/SETUP.md`):
   ```
-  pip install -e ".[desktop]"
-  kafkaf-desktop
+  pip install -e ".[desktop]"          # or ".[desktop-full]" to also get
+  kafkaf-desktop                       # our own trainable model, in one command
   ```
 - **API directly**:
   ```
@@ -60,14 +74,11 @@ that's it, no separate frontend build step.
 - **MCP server** (teach/train KafKaf's own model from Claude Desktop/Code)
   — see `docs/SETUP.md`.
 
-## Running on a VPS, and keeping it updated
+## Running on a VPS
 
 `python install.py` (or `deploy/install.sh`) works the same on a VPS as
-locally. To pull the latest code from the repo and rebuild/restart:
-
-```
-./deploy/update.sh
-```
+locally — see "Install / update" above for the update command, which
+works identically there.
 
 By default the web GUI/API is published on the VPS's public IP at `:8420`.
 For a real private access layer instead — reachable only from your own
