@@ -684,6 +684,23 @@ depends on a big-bang release — "grow it over time."
       `web_search.py`/`web_fetch.py` get retry only, since queries/URLs
       are typically unique per call.
 
+- [x] **Phase 24 — CLI parity for autonomy/workspace, and a clean XSS
+      audit sweep**: after phase 23's XSS fix, checked the rest of
+      `app.js`'s `innerHTML` sites for the same pattern (the plan had
+      flagged this as worth doing for consistency, not fixed ad hoc) —
+      all clean, only static translated strings via `t()` render
+      unescaped anywhere else, and `checkpoint_path` (worried about in the
+      original review) turned out not to be rendered in the UI at all.
+      Separately, a real parity gap: the CLI could only *read* the
+      autonomy level (`kafkaf autonomy`) and had no way at all to read or
+      change the skills workspace directory — both were web-GUI-only,
+      reachable solely through the Control Panel's `POST /autonomy` and
+      `POST /skills/workspace`. Added `kafkaf autonomy --set <level>` and
+      a new `kafkaf workspace [--set <path>]` command, so a CLI-only user
+      gets the same live control a web GUI user already had. The desktop
+      app needed no equivalent work — it's a thin pywebview shell around
+      the same web GUI, so it already has every feature the browser does.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
