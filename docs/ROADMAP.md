@@ -700,6 +700,31 @@ depends on a big-bang release — "grow it over time."
       gets the same live control a web GUI user already had. The desktop
       app needed no equivalent work — it's a thin pywebview shell around
       the same web GUI, so it already has every feature the browser does.
+- [x] **Phase 25 — A fourth raw-500 sighting, and the structural fix
+      instead of a fourth patch**: real screenshots from the field showed
+      the "Backend returned 500 with a non-JSON body" bug recurring —
+      this time while the user ran `pip install -e ".[train]"` to add
+      torch **with the desktop app's backend still running**, reinstalling
+      the live process's own package mid-request. That's exactly the kind
+      of failure a specific `except ValueError | RuntimeError |
+      ModuleNotFoundError` clause can't be written in advance for — it's
+      the fourth distinct code path this exact bug class has hit this
+      session (phases 15, 18, 19 each patched one path narrowly). Rather
+      than add a fourth one-off except clause, added a global
+      `@app.exception_handler(Exception)` in `core/api.py` — Starlette
+      documents that registering a handler for the base `Exception` class
+      overrides its outermost `ServerErrorMiddleware`, so this catches
+      *anything* unhandled anywhere in the ASGI stack (including custom
+      middleware like `RateLimitMiddleware`, not just inside route
+      bodies) and always returns JSON. Existing specific except clauses
+      are untouched and still fire first for the cases they know about
+      (better messages); this is the backstop for whatever the next one
+      turns out to be. Verified two ways: a regression test forcing an
+      unmatched exception through a route with no try/except of its own
+      at all (`/audit`), and a live check against a real running uvicorn
+      server (not just `TestClient`, which re-raises by default for
+      debuggability and would have hidden whether this actually works in
+      production) — confirmed a JSON 500 with a real Playwright fetch.
 
 ## Deferred / future work
 
