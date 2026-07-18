@@ -142,18 +142,23 @@ def test_run_forever_cycles_and_trains(monkeypatch):
         max_cycles=4,
     )
 
+    # 4 taught topics + 2 reflections (one after each of the two training
+    # runs at cycles 2 and 4). The second reflection lands after the last
+    # training run, so exactly one example is still unused at the end.
     counts = store.count_examples()
-    assert counts["total"] == 4
-    assert counts["unused"] == 0
+    assert counts["total"] == 6
+    assert counts["unused"] == 1
 
     latest = store.get_latest_training_run()
     assert latest is not None
     assert latest["steps"] == 10
-    assert latest["num_examples"] == 2
+    # cycle-4 run trains the 2 new topics plus the cycle-2 reflection
+    assert latest["num_examples"] == 3
 
     event_types = {e["event_type"] for e in audit_store.recent_events(limit=100)}
     assert "autopilot_teach" in event_types
     assert "autopilot_train" in event_types
+    assert "autopilot_reflection" in event_types
 
 
 def test_run_forever_logs_stop_event(monkeypatch, tmp_path):
@@ -211,6 +216,49 @@ def test_run_forever_halts_immediately_if_already_stopped(monkeypatch, tmp_path)
 
     # nothing should have been taught — the stop was seen before the first cycle
     assert store.count_examples()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_reflect_on_progress_stores_lesson_in_corpus(monkeypatch):
+    class ReflectiveTeacher(Brain):
+        name = "reflective-teacher"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            assert "training run" in messages[0]["content"]
+            return "The common thread is that structured practice compounds."
+
+    monkeypatch.setattr(
+        "kafkaf.core.enrichment.autopilot.get_brain", lambda spec: ReflectiveTeacher()
+    )
+    reflection = await autopilot.reflect_on_progress(
+        "ollama:llama3", ["photosynthesis", "gravity"], {"loss_start": 2.0, "loss_end": 1.5}
+    )
+    assert "compounds" in reflection
+    examples = store.get_unused_examples()
+    assert any("compounds" in e["completion"] for e in examples)
+
+
+@pytest.mark.asyncio
+async def test_reflect_on_progress_rejects_own_as_teacher():
+    with pytest.raises(ValueError):
+        await autopilot.reflect_on_progress("own", [], {"loss_start": 1.0, "loss_end": 0.9})
+
+
+def test_default_stop_file_matches_running_container_env(monkeypatch):
+    """Real bug found by tracing the docs: docker-compose.autopilot.yml
+    starts the loop with --stop-file /data/autopilot.stop, but the
+    documented convenience command `docker compose exec autopilot
+    kafkaf-autopilot-ctl stop` never passes --stop-file — so without this,
+    the CLI default would silently touch the wrong file (relative to the
+    container's /app cwd), and the loop would never see the stop request.
+    Since `exec` runs in the same container with the same environment,
+    reading AUTOPILOT_STOP_FILE (already set by compose on that container)
+    makes the default correct without needing to remember the flag."""
+    monkeypatch.delenv("AUTOPILOT_STOP_FILE", raising=False)
+    assert autopilot._default_stop_file() == autopilot.DEFAULT_STOP_FILE
+
+    monkeypatch.setenv("AUTOPILOT_STOP_FILE", "/data/autopilot.stop")
+    assert autopilot._default_stop_file() == "/data/autopilot.stop"
 
 
 def test_ctl_stop_resume_status(tmp_path, capsys):

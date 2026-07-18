@@ -17,6 +17,7 @@ just once per cycle) and halts within that window — see ctl_app below.
 """
 
 import asyncio
+import os
 import time
 from pathlib import Path
 
@@ -38,6 +39,23 @@ DEFAULT_TRAIN_STEPS = 100
 DEFAULT_TOPICS_PER_GROWTH = 5
 DEFAULT_STOP_FILE = "autopilot.stop"
 STOP_POLL_SECONDS = 5
+
+
+def _default_stop_file() -> str:
+    """Real bug found by tracing the docs: docker-compose.autopilot.yml
+    launches `kafkaf-autopilot` with `--stop-file /data/autopilot.stop`
+    (the shared volume, so it survives restarts), but the documented
+    convenience command `docker compose exec autopilot kafkaf-autopilot-ctl
+    stop` (docs/SETUP.md, docs/USAGE.md, install.py's printed output) never
+    passes `--stop-file` — so without this, it would silently fall back to
+    the bare 'autopilot.stop' constant, relative to the container's
+    /app cwd, a file the running loop never checks. The "emergency stop"
+    that's supposed to be the safety valve behind autonomous-by-default
+    would do nothing. Reading the same AUTOPILOT_STOP_FILE env var the
+    compose file already sets on that container fixes every current
+    invocation that doesn't explicitly pass --stop-file, since `exec`
+    runs inside the same container with the same environment."""
+    return os.environ.get("AUTOPILOT_STOP_FILE", DEFAULT_STOP_FILE)
 
 
 def default_teachers() -> list[str]:
@@ -111,6 +129,32 @@ async def propose_topics(
     return fresh[:count]
 
 
+async def reflect_on_progress(teacher_spec: str, recent_topics: list[str], train_result: dict) -> str:
+    """A real self-learning loop step: after each training run, the teacher
+    reflects on what was just learned and what lesson to carry forward, and
+    the reflection is stored back into the corpus — so the own model is
+    also trained on distilled lessons about its own progress, not only raw
+    topic explanations. Driven by the capable teacher model (like dynamic
+    curriculum growth), not the small own model reflecting on itself, which
+    would be far too weak to produce anything useful."""
+    if teacher_spec == "own":
+        raise ValueError("reflection needs a real teacher — 'own' is the model being trained.")
+    brain = get_brain(teacher_spec)
+    listed = ", ".join(recent_topics) if recent_topics else "(none)"
+    prompt = (
+        "A small private assistant model just finished a training run on these "
+        f"recently-taught topics: {listed}. Its training loss went from "
+        f"{train_result['loss_start']:.4f} to {train_result['loss_end']:.4f}. "
+        "In 2-3 plain sentences, state the single most useful lesson or connection "
+        "across these topics that the model should internalize. No preamble."
+    )
+    reflection = await brain.generate([{"role": "user", "content": prompt}])
+    reflection = reflection.strip()
+    if reflection:
+        service.teach_fact("lessons learned", reflection)
+    return reflection
+
+
 def run_forever(
     teachers: list[str],
     topics_path: str | None,
@@ -127,6 +171,7 @@ def run_forever(
     topics = load_topics(topics_path)
 
     cycle = 0
+    taught_since_last_train: list[str] = []
     while max_cycles is None or cycle < max_cycles:
         if is_stop_requested(stop_file):
             print(f"[autopilot] stop requested via {stop_file!r} — halting.")
@@ -161,6 +206,7 @@ def run_forever(
             audit_store.log_event(
                 "autopilot_teach", result["teacher"], f"topic={topic!r} corpus={result['corpus_size']['total']}"
             )
+            taught_since_last_train.append(topic)
         except Exception as exc:  # a bad teacher call must not kill the loop
             print(f"[autopilot] failed to teach {topic!r}: {exc}")
             audit_store.log_event("autopilot_error", teacher, f"failed to teach {topic!r}: {exc}")
@@ -179,6 +225,22 @@ def run_forever(
                     f"steps={train_result['steps']} loss {train_result['loss_start']:.4f} -> "
                     f"{train_result['loss_end']:.4f}",
                 )
+                reflection_teacher = next_teacher(teachers, cycle)
+                try:
+                    reflection = asyncio.run(
+                        reflect_on_progress(reflection_teacher, taught_since_last_train, train_result)
+                    )
+                    if reflection:
+                        print(f"[autopilot] reflection: {reflection}")
+                        audit_store.log_event(
+                            "autopilot_reflection", reflection_teacher, reflection[:300]
+                        )
+                except Exception as exc:  # a bad reflection call must not kill the loop
+                    print(f"[autopilot] reflection failed: {exc}")
+                    audit_store.log_event(
+                        "autopilot_error", reflection_teacher, f"reflection failed: {exc}"
+                    )
+                taught_since_last_train = []
             except ValueError as exc:
                 print(f"[autopilot] training skipped: {exc}")
 
@@ -210,7 +272,7 @@ def autopilot(
         DEFAULT_TOPICS_PER_GROWTH, help="How many new topics to request per curriculum growth round."
     ),
     stop_file: str = typer.Option(
-        DEFAULT_STOP_FILE,
+        _default_stop_file(),
         help="Emergency-stop file — checked every few seconds; touch it (or run "
         "`kafkaf-autopilot-ctl stop`) to halt gracefully.",
     ),
@@ -240,7 +302,7 @@ def autopilot(
 
 @ctl_app.command()
 def stop(
-    stop_file: str = typer.Option(DEFAULT_STOP_FILE, help="Must match the running autopilot's --stop-file."),
+    stop_file: str = typer.Option(_default_stop_file(), help="Must match the running autopilot's --stop-file."),
 ) -> None:
     """Emergency stop — a running autopilot halts within a few seconds, gracefully."""
     Path(stop_file).touch()
@@ -249,7 +311,7 @@ def stop(
 
 @ctl_app.command()
 def resume(
-    stop_file: str = typer.Option(DEFAULT_STOP_FILE, help="Must match the running autopilot's --stop-file."),
+    stop_file: str = typer.Option(_default_stop_file(), help="Must match the running autopilot's --stop-file."),
 ) -> None:
     """Clear the stop request so autopilot can be started again."""
     Path(stop_file).unlink(missing_ok=True)
@@ -258,7 +320,7 @@ def resume(
 
 @ctl_app.command()
 def status(
-    stop_file: str = typer.Option(DEFAULT_STOP_FILE, help="Must match the running autopilot's --stop-file."),
+    stop_file: str = typer.Option(_default_stop_file(), help="Must match the running autopilot's --stop-file."),
 ) -> None:
     """Check whether a stop is currently requested."""
     typer.echo("STOPPED (stop file present)" if is_stop_requested(stop_file) else "not stopped")

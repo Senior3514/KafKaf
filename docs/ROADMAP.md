@@ -726,6 +726,40 @@ depends on a big-bang release — "grow it over time."
       debuggability and would have hidden whether this actually works in
       production) — confirmed a JSON 500 with a real Playwright fetch.
 
+- [x] **Phase 26 — The emergency stop was silently broken in Docker, a
+      one-command install, and a real self-reflection loop**: three items
+      in one round, each concrete:
+      1. **A real bug in the emergency stop, found by tracing the docs
+         against the code**: `docker-compose.autopilot.yml` launches the
+         loop with `--stop-file /data/autopilot.stop`, but the documented
+         stop command (`docker compose exec autopilot kafkaf-autopilot-ctl
+         stop` — printed by install.py and shown in three docs files)
+         never passes `--stop-file`, so the CLI's hardcoded default meant
+         it touched `/app/autopilot.stop` — a file the running loop never
+         checks. The safety valve justifying autonomous-by-default did
+         nothing in the deployment it matters most for. Fixed by having
+         all four `--stop-file` defaults read the `AUTOPILOT_STOP_FILE`
+         env var (already set by compose on that exact container — `exec`
+         inherits it) before falling back to the old constant. Regression
+         test included.
+      2. **`pip install -e ".[desktop-full]"`** — one command for desktop
+         app + own-model training together, addressing the real Windows
+         failure from the field (a second `pip install` while the app is
+         running can't overwrite `kafkaf-desktop.exe` — WinError 32).
+         Installing everything up front means there is no second install.
+      3. **A self-reflection loop in autopilot** — the honest, safe core
+         of the recurring "it should learn on its own and draw lessons"
+         request: after each training run, the teacher model reflects on
+         the recently-taught topics and the loss trend ("the single most
+         useful lesson to internalize"), and that reflection is stored
+         back into the training corpus (`teach_fact("lessons learned",
+         ...)`) and audit-logged as `autopilot_reflection` — so the own
+         model also trains on distilled lessons about its own progress,
+         not only raw topic explanations. Like dynamic curriculum growth,
+         the reflection is driven by the capable teacher, not by the tiny
+         own model reflecting on itself (which would produce noise). A
+         failed reflection never kills the loop.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

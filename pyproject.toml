@@ -19,6 +19,11 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 train = ["torch>=2.2"]
 mcp = ["mcp>=1.2"]
 desktop = ["pywebview>=5.0"]
+# One command for "the desktop app, and our own trainable model" together —
+# avoids a second, separate `pip install` later while kafkaf-desktop.exe is
+# already running, which fails on Windows with a file-in-use error (the
+# console-script wrapper can't be overwritten while its process is live).
+desktop-full = ["kafkaf[desktop,train]"]
 
 [project.scripts]
 kafkaf = "kafkaf.clients.cli.main:app"
