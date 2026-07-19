@@ -103,6 +103,12 @@ class ScheduleSkill(Skill):
                 return "error: expected 'add <when> <skill>: <arg>' (missing the time)"
             if skill_name == "schedule":
                 return "error: a scheduled task can't itself be 'schedule'"
+            target_skill = SKILLS_BY_NAME.get(skill_name)
+            if target_skill is not None and target_skill.requires_approval:
+                return (
+                    f"error: {skill_name!r} requires human approval on every call and can't be "
+                    "scheduled — no one can click approve for an unattended scheduled fire."
+                )
 
             try:
                 run_at = _parse_when(when_str, self._now())

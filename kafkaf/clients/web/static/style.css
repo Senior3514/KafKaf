@@ -13,6 +13,11 @@
   --bubble-user-text: #ffffff;
   --bubble-assistant: #ffffff;
   --error: #b3261e;
+  --warn: #b7791f;
+  /* Computed once here from --warn/--surface — each theme block below only
+     needs to override --warn itself; this recomputes per-theme since
+     custom properties resolve lazily against the active cascade. */
+  --warn-soft: color-mix(in srgb, var(--warn) 16%, var(--surface));
   --shadow-sm: 0 1px 3px rgba(15, 15, 20, 0.07), 0 1px 1px rgba(15, 15, 20, 0.05);
   --shadow-md: 0 10px 28px rgba(15, 15, 20, 0.09), 0 2px 8px rgba(15, 15, 20, 0.06);
   --shadow-lg: 0 20px 48px rgba(15, 15, 20, 0.14), 0 6px 16px rgba(15, 15, 20, 0.08);
@@ -44,6 +49,7 @@
     --bubble-user-text: #0b0b0c;
     --bubble-assistant: #1c1c1f;
     --error: #ff6b60;
+    --warn: #f5b942;
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
@@ -65,6 +71,7 @@
   --bubble-user-text: #0b0b0c;
   --bubble-assistant: #1c1c1f;
   --error: #ff6b60;
+  --warn: #f5b942;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
@@ -82,6 +89,7 @@
   --bubble-user-text: #ffffff;
   --bubble-assistant: #ffffff;
   --error: #b3261e;
+  --warn: #b7791f;
   --shadow-sm: 0 1px 3px rgba(15, 15, 20, 0.07), 0 1px 1px rgba(15, 15, 20, 0.05);
   --shadow-md: 0 10px 28px rgba(15, 15, 20, 0.09), 0 2px 8px rgba(15, 15, 20, 0.06);
   --shadow-lg: 0 20px 48px rgba(15, 15, 20, 0.14), 0 6px 16px rgba(15, 15, 20, 0.08);
@@ -102,6 +110,7 @@
   --bubble-user-text: #2d1b2e;
   --bubble-assistant: #3d2438;
   --error: #ff6b6b;
+  --warn: #ffd166;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
@@ -417,6 +426,50 @@ body {
   color: var(--error);
   border: 1px solid var(--error);
   background: transparent;
+}
+
+.bubble.approval {
+  align-self: center;
+  max-width: 90%;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  color: var(--text);
+}
+
+.approval-text strong {
+  font-weight: 700;
+}
+
+.approval-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.approval-actions button {
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.approval-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.approve-btn {
+  border: none;
+  background: var(--warn);
+  color: #1a1a1a;
+}
+
+.deny-btn {
+  border: 1px solid var(--error);
+  background: transparent;
+  color: var(--error);
 }
 
 .bubble.typing {

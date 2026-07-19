@@ -20,6 +20,17 @@ class Skill(ABC):
     # subset controllable, not to parse intent out of free-text args.
     read_only: bool = True
 
+    # Mirrors read_only's shape. True means this skill NEVER auto-executes
+    # from run_skill_loop regardless of write_skills_mode — it always
+    # pauses for a live human approval click instead, once
+    # write_skills_mode has already allowed it to be offered at all.
+    # Independent of read_only (both are always False together for the
+    # skills that use this today, but they gate different things:
+    # read_only/write_skills_mode gates *whether the write is allowed at
+    # all*; requires_approval gates *whether it can run without a live
+    # human click*, once already allowed).
+    requires_approval: bool = False
+
     @abstractmethod
     async def run(self, arg: str) -> str:
         """Execute the skill and return an observation string."""

@@ -32,7 +32,17 @@ def _send(
     if response.is_error:
         detail = response.json().get("detail", response.text) if response.text else response.text
         raise httpx.HTTPStatusError(detail, request=response.request, response=response)
-    return response.json()["reply"]
+    data = response.json()
+    if data.get("pending_approval"):
+        # run_code/browser_automate always pause for a live approve/deny
+        # click — only the web GUI's chat bubble has that button today.
+        pending = data["pending_approval"]
+        return (
+            f"[paused: {pending['skill_name']!r} needs a human approval click before it can "
+            f"run — approve/deny isn't available from the CLI yet, use the web GUI for this "
+            f"turn (approval #{pending['approval_id']})]"
+        )
+    return data["reply"]
 
 
 @app.command()

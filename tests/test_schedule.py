@@ -84,6 +84,13 @@ class TestScheduleSkill:
         result = await _skill_at(_FIXED_NOW).run("cancel 999")
         assert "no scheduled task" in result
 
+    @pytest.mark.asyncio
+    async def test_cannot_schedule_approval_gated_skill(self):
+        result = await _skill_at(_FIXED_NOW).run("add in 1h run_code: print(1)")
+        assert result.startswith("error:")
+        assert "human approval" in result
+        assert await _skill_at(_FIXED_NOW).run("list") == "no scheduled tasks"
+
 
 class TestRunDueSchedules:
     @pytest.mark.asyncio
@@ -125,4 +132,17 @@ class TestRunDueSchedules:
         ran = await run_due_schedules(later)
         assert len(ran) == 1
         assert ran[0]["result"].startswith("error:")
+        assert skills_store.list_schedules() == []
+
+    @pytest.mark.asyncio
+    async def test_approval_gated_skill_row_is_skipped_never_executed(self):
+        # Simulates a row inserted another way, bypassing ScheduleSkill.add's
+        # own guard — run_due_schedules must still refuse to run it
+        # unattended, since no one can click approve for a scheduled fire.
+        skills_store.add_schedule("run_code", "print('should never run')", "2026-01-01T13:00:00+00:00")
+        later = "2026-01-01T23:59:00+00:00"
+        ran = await run_due_schedules(later)
+        assert len(ran) == 1
+        assert ran[0]["result"].startswith("error:")
+        assert "human approval" in ran[0]["result"]
         assert skills_store.list_schedules() == []

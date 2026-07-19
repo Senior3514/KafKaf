@@ -437,14 +437,93 @@ class TestReadOnlyClassification:
     def test_write_capable_skills_are_marked_not_read_only(self):
         from kafkaf.core.skills.registry import SKILLS_BY_NAME
 
-        write_capable = {"files", "journal", "identity", "reminders", "schedule"}
+        write_capable = {"files", "journal", "identity", "reminders", "schedule", "run_code", "browser_automate"}
         for name in write_capable:
             assert SKILLS_BY_NAME[name].read_only is False, f"{name} should be write-capable"
 
     def test_every_other_skill_is_read_only(self):
         from kafkaf.core.skills.registry import SKILLS_BY_NAME
 
-        write_capable = {"files", "journal", "identity", "reminders", "schedule"}
+        write_capable = {"files", "journal", "identity", "reminders", "schedule", "run_code", "browser_automate"}
         for name, skill in SKILLS_BY_NAME.items():
             if name not in write_capable:
                 assert skill.read_only is True, f"{name} should be read-only"
+
+    def test_only_run_code_and_browser_automate_require_approval(self):
+        from kafkaf.core.skills.registry import SKILLS_BY_NAME
+
+        gated = {"run_code", "browser_automate"}
+        for name, skill in SKILLS_BY_NAME.items():
+            expected = name in gated
+            assert skill.requires_approval is expected, f"{name}.requires_approval should be {expected}"
+
+
+class TestRunCode:
+    @pytest.mark.asyncio
+    async def test_captures_stdout(self):
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        result = await RunCodeSkill().run("print('hello from the sandbox')")
+        assert "exit=0" in result
+        assert "hello from the sandbox" in result
+
+    @pytest.mark.asyncio
+    async def test_captures_stderr_and_nonzero_exit(self):
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        result = await RunCodeSkill().run("raise ValueError('boom')")
+        assert "exit=1" in result
+        assert "ValueError: boom" in result
+
+    @pytest.mark.asyncio
+    async def test_timeout_is_enforced(self, monkeypatch):
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        monkeypatch.setattr("kafkaf.core.config.settings.run_code_timeout_seconds", 1)
+        result = await RunCodeSkill().run("import time; time.sleep(5)")
+        assert result.startswith("error:")
+        assert "timeout" in result
+
+    @pytest.mark.asyncio
+    async def test_output_is_truncated(self):
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        result = await RunCodeSkill().run("print('x' * 10000)")
+        assert "[truncated]" in result
+        assert len(result) < 10000 + 200
+
+    @pytest.mark.asyncio
+    async def test_runs_inside_the_skills_workspace(self, tmp_path):
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        result = await RunCodeSkill().run(
+            "import pathlib; pathlib.Path('proof.txt').write_text('here')"
+        )
+        assert "exit=0" in result
+        workspace = tmp_path / "workspace"
+        assert (workspace / "proof.txt").exists()
+
+    @pytest.mark.asyncio
+    async def test_shell_metacharacters_are_inert(self):
+        # Proves this is an argument-list subprocess.run call, never
+        # shell=True — a real shell would run "rm -rf /tmp/proof" as a
+        # command after the ';'. Here the whole string is fed to the
+        # Python interpreter as source instead, where "rm -rf /tmp/proof"
+        # parses as the arithmetic expression "rm - rf / tmp / proof" and
+        # raises NameError on the undefined name "rm" — proving no shell
+        # ever saw this string as a command (the print before it still ran,
+        # since Python executed it as real Python source, statement by
+        # statement).
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        result = await RunCodeSkill().run("print('safe'); rm -rf /tmp/proof")
+        assert "exit=1" in result
+        assert "safe" in result
+        assert "NameError: name 'rm' is not defined" in result
+
+    @pytest.mark.asyncio
+    async def test_no_code_given(self):
+        from kafkaf.core.skills.run_code import RunCodeSkill
+
+        result = await RunCodeSkill().run("   ")
+        assert result.startswith("error:")

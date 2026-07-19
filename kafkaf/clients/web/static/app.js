@@ -114,6 +114,45 @@ function addBubble(role, text) {
   return bubble;
 }
 
+function renderChatOutcome(data) {
+  if (data.pending_approval) {
+    addApprovalBubble(data.pending_approval);
+  } else {
+    addBubble("assistant", data.reply);
+  }
+}
+
+function addApprovalBubble(pendingApproval) {
+  const { approval_id: approvalId, skill_name: skillName, skill_arg: skillArg } = pendingApproval;
+  removeWelcome();
+  const bubble = document.createElement("div");
+  bubble.className = "bubble approval";
+  bubble.innerHTML = `
+    <div class="approval-text">${t("approval_prompt_prefix")} <strong>${escapeHtml(skillName)}</strong>: ${escapeHtml(skillArg)}</div>
+    <div class="approval-actions">
+      <button type="button" class="approve-btn">${t("approval_approve_btn")}</button>
+      <button type="button" class="deny-btn">${t("approval_deny_btn")}</button>
+    </div>`;
+  chatEl.appendChild(bubble);
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  const decide = async (decision) => {
+    bubble.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    try {
+      const response = await fetch(`/skills/approvals/${approvalId}/${decision}`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || `${response.status}`);
+      bubble.remove();
+      renderChatOutcome(data);
+    } catch (err) {
+      addBubble("error", `${t("error_prefix")}: ${err.message}`);
+      bubble.querySelectorAll("button").forEach((b) => (b.disabled = false));
+    }
+  };
+  bubble.querySelector(".approve-btn").addEventListener("click", () => decide("approve"));
+  bubble.querySelector(".deny-btn").addEventListener("click", () => decide("deny"));
+}
+
 function addTypingIndicator() {
   const bubble = document.createElement("div");
   bubble.className = "bubble assistant typing";
@@ -197,7 +236,7 @@ formEl.addEventListener("submit", async (event) => {
       throw new Error(data.detail || `Backend returned ${response.status}`);
     }
     typingBubble.remove();
-    addBubble("assistant", data.reply);
+    renderChatOutcome(data);
   } catch (err) {
     typingBubble.remove();
     addBubble("error", `${t("error_prefix")}: ${err.message}`);

@@ -132,9 +132,10 @@ async def test_handle_chat_council_mode(monkeypatch, tmp_path):
     monkeypatch.setattr(council, "get_brain", lambda spec: brains[spec])
     monkeypatch.setattr(council, "_default_brain", EchoSynthesizer())
 
-    reply = await council.handle_chat("s1", "hello", council_brains=["a:1", "a:2"])
-    assert "answer A" in reply
-    assert "answer B" in reply
+    outcome = await council.handle_chat("s1", "hello", council_brains=["a:1", "a:2"])
+    assert outcome.pending_approval is None
+    assert "answer A" in outcome.reply
+    assert "answer B" in outcome.reply
 
     history = memory_store.get_history("s1")
-    assert [m["content"] for m in history] == ["hello", reply]
+    assert [m["content"] for m in history] == ["hello", outcome.reply]

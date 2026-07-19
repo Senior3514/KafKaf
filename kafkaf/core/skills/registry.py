@@ -1,4 +1,5 @@
 from kafkaf.core.skills.base import Skill
+from kafkaf.core.skills.browser_automate import BrowserAutomateSkill
 from kafkaf.core.skills.browser_render import BrowserRenderSkill
 from kafkaf.core.skills.calculator import CalculatorSkill
 from kafkaf.core.skills.datetime_skill import DateTimeSkill
@@ -13,6 +14,7 @@ from kafkaf.core.skills.password_generator import PasswordGeneratorSkill
 from kafkaf.core.skills.random_pick import RandomPickSkill
 from kafkaf.core.skills.reminders import RemindersSkill
 from kafkaf.core.skills.rss import RssSkill
+from kafkaf.core.skills.run_code import RunCodeSkill
 from kafkaf.core.skills.schedule import ScheduleSkill
 from kafkaf.core.skills.system_info import SystemInfoSkill
 from kafkaf.core.skills.text_diff import TextDiffSkill
@@ -45,6 +47,8 @@ ALL_SKILLS: list[Skill] = [
     HashTextSkill(),
     RandomPickSkill(),
     TextStatsSkill(),
+    RunCodeSkill(),
+    BrowserAutomateSkill(),
 ]
 
 SKILLS_BY_NAME: dict[str, Skill] = {skill.name: skill for skill in ALL_SKILLS}
@@ -69,6 +73,16 @@ async def run_due_schedules(now_iso: str) -> list[dict]:
             # wedge the queue on it.
             skills_store.complete_schedule(task["id"])
             ran.append({**task, "result": f"error: skill {task['skill_name']!r} no longer exists"})
+            continue
+        if skill.requires_approval:
+            # Defense-in-depth: ScheduleSkill.add already refuses to
+            # create a row naming a requires_approval skill, but skip it
+            # here too in case one ever exists another way — an
+            # unattended autopilot cycle has no human to click approve.
+            skills_store.complete_schedule(task["id"])
+            ran.append(
+                {**task, "result": f"error: {task['skill_name']!r} requires human approval and cannot run unattended — skipped"}
+            )
             continue
         try:
             result = await skill.run(task["skill_arg"])

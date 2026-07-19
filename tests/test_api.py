@@ -546,3 +546,176 @@ def test_chat_skills_mode_executes_tools(monkeypatch):
         )
     assert response.status_code == 200
     assert response.json()["reply"] == "the answer is 42"
+
+
+class _FakeGatedSkill:
+    name = "fake_gated"
+    description = "fake approval-gated skill for API-level tests"
+    read_only = False
+    requires_approval = True
+
+    def __init__(self):
+        self.run_calls: list[str] = []
+
+    async def run(self, arg: str) -> str:
+        self.run_calls.append(arg)
+        return f"did {arg}"
+
+
+@pytest.fixture
+def fake_gated_skill(monkeypatch):
+    import kafkaf.core.skills.loop as loop_module
+
+    skill = _FakeGatedSkill()
+    monkeypatch.setitem(loop_module.SKILLS_BY_NAME, "fake_gated", skill)
+    return skill
+
+
+def test_chat_with_gated_skill_returns_pending_approval_not_reply(monkeypatch, fake_gated_skill):
+    class ScriptedBrain(Brain):
+        name = "scripted-gated"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "ACTION: fake_gated: do the risky thing"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-gated", "skills": True}
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] is None
+    assert body["pending_approval"]["skill_name"] == "fake_gated"
+    assert body["pending_approval"]["skill_arg"] == "do the risky thing"
+    assert fake_gated_skill.run_calls == []
+
+    # History must not show this turn yet — only completed exchanges are saved.
+    assert council.store.get_history("s-gated") == []
+
+
+def test_approve_endpoint_executes_and_completes_the_turn(monkeypatch, fake_gated_skill):
+    class ScriptedBrain(Brain):
+        name = "scripted-gated"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            self.calls += 1
+            if self.calls == 1:
+                return "ACTION: fake_gated: do it"
+            return "FINAL ANSWER: all done"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-approve", "skills": True}
+        )
+        approval_id = first.json()["pending_approval"]["approval_id"]
+
+        response = client.post(f"/skills/approvals/{approval_id}/approve")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] == "all done"
+    assert body["pending_approval"] is None
+    assert fake_gated_skill.run_calls == ["do it"]
+
+    history = council.store.get_history("s-approve")
+    assert [m["content"] for m in history] == ["hi", "all done"]
+
+
+def test_deny_endpoint_continues_with_denial_observation(monkeypatch, fake_gated_skill):
+    class ScriptedBrain(Brain):
+        name = "scripted-gated"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            self.calls += 1
+            if self.calls == 1:
+                return "ACTION: fake_gated: do it"
+            return "FINAL ANSWER: understood, skipping that"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-deny", "skills": True}
+        )
+        approval_id = first.json()["pending_approval"]["approval_id"]
+
+        response = client.post(f"/skills/approvals/{approval_id}/deny")
+    assert response.status_code == 200
+    assert response.json()["reply"] == "understood, skipping that"
+    assert fake_gated_skill.run_calls == []
+
+
+def test_approve_unknown_id_returns_404():
+    with TestClient(app) as client:
+        response = client.post("/skills/approvals/999999/approve")
+    assert response.status_code == 404
+
+
+def test_approve_already_decided_returns_409(monkeypatch, fake_gated_skill):
+    class ScriptedBrain(Brain):
+        name = "scripted-gated"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            # Always requests the same tool again — irrelevant to this test,
+            # which only cares that the ORIGINAL approval_id can't be
+            # decided a second time, whatever happens after the first.
+            return "ACTION: fake_gated: do it"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/chat", json={"message": "hi", "session_id": "s-race", "skills": True}
+        )
+        approval_id = first.json()["pending_approval"]["approval_id"]
+
+        ok = client.post(f"/skills/approvals/{approval_id}/approve")
+        assert ok.status_code == 200
+        raced = client.post(f"/skills/approvals/{approval_id}/deny")
+    assert raced.status_code == 409
+
+
+def test_list_pending_approvals(monkeypatch, fake_gated_skill):
+    class ScriptedBrain(Brain):
+        name = "scripted-gated"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "ACTION: fake_gated: do it"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        client.post("/chat", json={"message": "hi", "session_id": "s-list", "skills": True})
+        response = client.get("/skills/approvals")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["skill_name"] == "fake_gated"
+
+
+def test_status_endpoint_reports_pending_approval_count(monkeypatch, fake_gated_skill):
+    class ScriptedBrain(Brain):
+        name = "scripted-gated"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "ACTION: fake_gated: do it"
+
+    monkeypatch.setattr(council, "_default_brain", ScriptedBrain())
+
+    with TestClient(app) as client:
+        before = client.get("/status").json()
+        assert before["pending_approvals"]["count"] == 0
+
+        client.post("/chat", json={"message": "hi", "session_id": "s-count", "skills": True})
+
+        after = client.get("/status").json()
+    assert after["pending_approvals"]["count"] == 1

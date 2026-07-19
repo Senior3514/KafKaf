@@ -1096,6 +1096,98 @@ depends on a big-bang release — "grow it over time."
       Chromium screenshots of both the empty-state welcome screen and an
       active conversation.
 
+- [x] **Phase 38 — Approval-gated code execution and browser automation**:
+      the "build Hermes Agent" ask came back once more, but this time,
+      after being offered an explicit three-way choice — unattended (like
+      Hermes Agent itself), approval-gated (real capability, but a human
+      clicks approve on every single action), or declined entirely — the
+      answer was approval-gated. That is a real, buildable, safety-sound
+      request, distinct from every prior version of this ask, and it's
+      what this phase builds. The unattended option stayed off the table
+      for the same reason stated every time this came up: Hermes Agent's
+      own architecture — no per-action human review, reachable from an
+      always-on loop — is what produced its actual, documented CVEs. This
+      is what closes the "Sandboxed code execution" deferred item further
+      down this document: condition (2) there (no path from the
+      unattended autopilot loop, ever) is met structurally, not by
+      convention; condition (1) (full container/kernel isolation) is
+      intentionally *not* what makes this safe — a live human clicking
+      approve on every single call is the real control instead, which is
+      a different and, for an interactive product, stronger guarantee
+      than an unattended sandbox alone would have been.
+      - Two new skills, both `read_only = False` and a new
+        `requires_approval = True`: `run_code` (real Python execution —
+        argument-list `subprocess.run`, never a shell, workspace-jailed
+        cwd, a hard timeout, capped output) and `browser_automate`
+        (`goto`/`click`/`fill`/`submit` in a fresh, isolated headless
+        Chromium context — never the user's real browser/profile/cookies,
+        one atomic action per call, no cross-call session persistence).
+      - A genuinely resumable pause/resume mechanism, since `/chat` was
+        (and mostly still is) a stateless, synchronous request/response
+        with zero prior job/queue infrastructure anywhere in this
+        codebase: the ReAct loop (`core/skills/loop.py`) now returns a
+        typed `SkillLoopResult` (either a final `reply` or a
+        `pending_approval`) instead of a bare string, splitting into a
+        shared `_run_iterations` helper used by both a fresh start and a
+        resume so the loop can pause an arbitrary number of times in one
+        turn — approving one gated call can immediately hit a second one,
+        which pauses again with its own approval. Paused state
+        (conversation-so-far, iteration count, brain spec) is persisted
+        in a new `skill_approvals` table (`core/skills/store.py`), with
+        an atomic `claim_approval()` (`UPDATE ... WHERE status='pending'`)
+        so a double-click or two open tabs can't double-execute.
+        `core/council.py` gained `resume_chat(approval_id, decision)` and
+        moved chat-history/audit finalization into one helper called only
+        on a genuine final reply — a turn that's abandoned mid-approval
+        never pollutes chat history.
+      - `POST /skills/approvals/{id}/approve|deny` return the exact same
+        response shape `/chat` does, so the web GUI has one rendering
+        path for the initial message, a decision, and any nested
+        re-pause. The chat itself gets a new amber `.bubble.approval`
+        with Approve/Deny buttons — the primary place a pending action
+        surfaces, not a buried Control Panel toggle.
+      - Structurally unreachable from the unattended `autopilot` loop:
+        `ScheduleSkill.add` refuses to schedule either gated skill at
+        creation time, and `run_due_schedules` skips one defensively even
+        if a row ever existed another way — closing a real, previously
+        undocumented gap where `write_skills_mode` didn't apply to
+        anything fired from autopilot at all. Council mode (parallel
+        multi-brain fan-out) auto-denies a gated call with a clear
+        observation rather than trying to pause several brains for one
+        approval — a deliberate v1 scope line, not an oversight.
+      - Deliberately, explicitly **not built**: general OS-level desktop
+        automation (mouse/keyboard control over the whole screen,
+        clicking arbitrary windows/applications). Only sandboxed
+        *browser* automation exists. This is a firm scope line, not a
+        placeholder: full desktop input injection can reach password
+        managers, banking apps, and security dialogs, and an approval
+        click doesn't make it safe, since a user can't fully audit what
+        an arbitrary desktop click will actually do before approving it.
+      - Isolation stated honestly in the skill descriptions and docs, not
+        oversold: `run_code` is process-level sandboxing only (workspace
+        jail, timeout, output cap) — not kernel/container isolation, and
+        no network blocking is guaranteed. The Docker deployment gets
+        real container isolation as a side effect of the backend already
+        running in a container; the desktop app has no such boundary at
+        all, so the human approval click is the actual primary safety
+        control there, not the sandbox.
+      Verified: real subprocess execution for `run_code` (stdout/stderr
+      capture, timeout enforcement, output truncation, workspace-cwd
+      jail, and a live proof that shell metacharacters are inert — fed to
+      the Python interpreter as source, not a shell, so they raise
+      `NameError` rather than executing as a command); real Playwright
+      automation for `browser_automate` against a local HTTP server
+      (click actually navigates, fill actually sets a field with a live
+      DOM proof, submit actually POSTs real form data); the full
+      pause/resume mechanics (pause without executing, resume-and-execute
+      on approval, resume-with-denial-observation, nested second
+      approval, `MAX_ITERATIONS` enforced cumulatively across resumes,
+      `manual` write-mode blocking with no approval row created at all,
+      council-mode auto-denial); and a live end-to-end Playwright run
+      against a real server with a scripted brain — the approval bubble
+      rendering correctly (screenshotted), Approve actually executing the
+      skill and completing the turn.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
@@ -1127,18 +1219,20 @@ built yet — named here so nothing is silently dropped:
 - **MCP-client integration** — letting KafKaf's own skills call out to
   *external* MCP servers (not just exposing KafKaf's own tools via its MCP
   server), reachable from the community's broader MCP tool ecosystem.
-- **Sandboxed code execution** — flagged in phase 3, attempted and declined
-  twice since: phase 9's subprocess-plus-resource-limits version, and phase
-  10's bubblewrap/namespace-isolated version (blocked before it was even
-  installed). Both attempts shared the same disqualifying property —
-  reachable by the now-default-on autopilot loop with no human reviewing
-  each call. Shipping this needs two things confirmed together, explicitly,
-  not inferred from general "more autonomy" language: (1) real
-  container/kernel-namespace isolation (no network access, read-only root,
-  workspace-only writable — not just subprocess + rlimits), and (2) a gate
-  that gives the *unattended autopilot loop* no path to it at all, ever —
-  only interactive, human-initiated chat turns. Until both are true and
-  explicitly signed off, this stays out.
+- ~~**Sandboxed code execution**~~ — **shipped in phase 38** as
+  `run_code`, approval-gated rather than fully isolated: condition (2)
+  below (no path from the unattended autopilot loop) is met structurally;
+  condition (1) is deliberately answered differently than originally
+  planned here — a live human approving every single call, not full
+  container/kernel isolation, is the real control. Kept for the record:
+  flagged in phase 3, attempted and declined twice before phase 38 —
+  phase 9's subprocess-plus-resource-limits version, and phase 10's
+  bubblewrap/namespace-isolated version (blocked before it was even
+  installed) — both disqualified for the same reason, reachable by the
+  unattended autopilot loop with no human reviewing each call. General
+  OS-level desktop automation (as opposed to the sandboxed *browser*
+  automation phase 38 also shipped) remains a firm, explained boundary,
+  not a deferred item — see phase 38's write-up.
 
 ## Notes on scope
 
