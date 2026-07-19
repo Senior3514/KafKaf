@@ -13,6 +13,7 @@ import time
 
 from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.base import Brain
+from kafkaf.core.config import settings
 from kafkaf.core.skills.registry import SKILLS_BY_NAME
 
 MAX_ITERATIONS = 4
@@ -61,12 +62,33 @@ async def run_skill_loop(brain: Brain, messages: list[dict[str, str]]) -> str:
         if skill is None:
             observation = f"error: unknown tool {skill_name!r}"
             audit_store.log_event("skill_error", skill_name, observation)
+        elif not skill.read_only and settings.write_skills_mode == "manual":
+            # A second, independent dial from autonomy_level (which already
+            # allowed skills to run at all) — this gates the write-capable
+            # subset specifically. No pause-and-resume confirmation flow
+            # exists for a synchronous /chat call, so "manual" honestly
+            # means "off until you switch modes," same as the other
+            # autonomy-style dials already in this product.
+            observation = (
+                f"error: {skill_name!r} can modify data, and write-capable skills are "
+                "set to 'manual' mode — not executed. Switch write-skill mode to "
+                "'assisted' or 'autonomous' to allow it."
+            )
+            audit_store.log_event("skill_write_blocked", skill_name, f"arg={skill_arg[:100]!r}")
         else:
             try:
                 observation = await skill.run(skill_arg)
                 duration_ms = int((time.monotonic() - start) * 1000)
+                # Flagged as a distinct event type in 'assisted' mode so
+                # write activity is easy to review after the fact —
+                # visibility without blocking.
+                event_type = (
+                    "skill_write"
+                    if not skill.read_only and settings.write_skills_mode == "assisted"
+                    else "skill"
+                )
                 audit_store.log_event(
-                    "skill", skill_name, f"arg={skill_arg[:100]!r} -> {observation[:100]!r}", duration_ms
+                    event_type, skill_name, f"arg={skill_arg[:100]!r} -> {observation[:100]!r}", duration_ms
                 )
             except Exception as exc:  # a broken skill must not crash the conversation
                 observation = f"error: {exc}"

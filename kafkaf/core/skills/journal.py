@@ -9,6 +9,7 @@ MAX_ENTRIES_SHOWN = 20
 
 class JournalSkill(Skill):
     name = "journal"
+    read_only = False  # supports "add <note>"
     description = (
         "A private, timestamped notes log confined to the sandboxed workspace. "
         "Usage: 'add <note>' to append an entry, or 'show' for the most recent entries."

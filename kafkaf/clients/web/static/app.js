@@ -382,6 +382,7 @@ function escapeHtml(value) {
 function renderControlPanel(statusData, auditEvents) {
   const own = statusData.own_model;
   const autonomyRow = statusData.autonomy;
+  const writeSkillsRow = statusData.write_skills_mode;
 
   const lastRun = own.last_training_run;
   const lastRunText = lastRun
@@ -410,6 +411,15 @@ function renderControlPanel(statusData, auditEvents) {
     )
     .join("");
 
+  const writeSkillsButtons = ["manual", "assisted", "autonomous"]
+    .map(
+      (mode) => `
+      <button type="button" class="autonomy-btn write-skills-btn${mode === writeSkillsRow.mode ? " active" : ""}" data-mode="${mode}">
+        ${t("write_skills_mode_" + mode)}
+      </button>`
+    )
+    .join("");
+
   controlBodyEl.innerHTML = `
     <div class="control-section">
       <h3>${t("autonomy_heading")}</h3>
@@ -419,6 +429,12 @@ function renderControlPanel(statusData, auditEvents) {
   }</span></div>
       <p class="control-hint">${autonomyRow.description}</p>
       <p class="control-hint">${t("autonomy_change_hint")}</p>
+    </div>
+    <div class="control-section">
+      <h3>${t("write_skills_heading")}</h3>
+      <div class="autonomy-buttons">${writeSkillsButtons}</div>
+      <p class="control-hint">${writeSkillsRow.description}</p>
+      <p class="control-hint">${t("write_skills_hint")}</p>
     </div>
     <div class="control-section">
       <h3>${t("autopilot_heading")}</h3>
@@ -477,6 +493,7 @@ function renderControlPanel(statusData, auditEvents) {
   `;
   wireGrowPanel(statusData.default_teacher);
   wireAutonomyButtons();
+  wireWriteSkillsButtons();
   wireWorkspacePanel();
   wireAutopilotButton(statusData.autopilot.stopped);
 }
@@ -521,10 +538,14 @@ function wireWorkspacePanel() {
 }
 
 function wireAutonomyButtons() {
-  controlBodyEl.querySelectorAll(".autonomy-btn").forEach((btn) => {
+  // :not(.write-skills-btn) — both button rows share the .autonomy-btn
+  // class for identical styling, but they're two independent dials with
+  // different endpoints; without this, this handler would also catch
+  // write-skills clicks and POST {level: undefined} to /autonomy.
+  controlBodyEl.querySelectorAll(".autonomy-btn:not(.write-skills-btn)").forEach((btn) => {
     btn.addEventListener("click", async () => {
       if (btn.classList.contains("active")) return;
-      controlBodyEl.querySelectorAll(".autonomy-btn").forEach((b) => (b.disabled = true));
+      controlBodyEl.querySelectorAll(".autonomy-btn:not(.write-skills-btn)").forEach((b) => (b.disabled = true));
       try {
         await fetch("/autonomy", {
           method: "POST",
@@ -534,6 +555,24 @@ function wireAutonomyButtons() {
       } finally {
         await loadControlPanel();
         await refreshSkillsAvailability();
+      }
+    });
+  });
+}
+
+function wireWriteSkillsButtons() {
+  controlBodyEl.querySelectorAll(".write-skills-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (btn.classList.contains("active")) return;
+      controlBodyEl.querySelectorAll(".write-skills-btn").forEach((b) => (b.disabled = true));
+      try {
+        await fetch("/skills/write-mode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: btn.dataset.mode }),
+        });
+      } finally {
+        await loadControlPanel();
       }
     });
   });

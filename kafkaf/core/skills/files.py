@@ -8,6 +8,7 @@ MAX_WRITE_CHARS = 20000
 
 class FilesSkill(Skill):
     name = "files"
+    read_only = False  # supports "write <path>\n<content>"
     description = (
         "Read/write/list files in a sandboxed workspace directory. Usage: "
         "'list', 'read <path>', or 'write <path>\\n<content>'."

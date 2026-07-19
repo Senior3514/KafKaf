@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     # kafkaf/core/autonomy.py for what each tier unlocks.
     autonomy_level: Literal["observe", "assisted", "autonomous"] = "autonomous"
 
+    # A second, independent dial: autonomy_level gates whether skills run
+    # at all; this gates the write-capable subset specifically (files,
+    # journal, identity, reminders, schedule — see Skill.read_only) once
+    # skills are already allowed. "manual" blocks them outright (no
+    # pause-and-resume confirmation flow exists yet — see
+    # core/skills/loop.py); "assisted" runs them but audit-logs them under
+    # a distinct event type for easy review; "autonomous" is today's
+    # unchanged default.
+    write_skills_mode: Literal["manual", "assisted", "autonomous"] = "autonomous"
+
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen3:4b"
     db_path: str = "kafkaf.db"

@@ -28,3 +28,18 @@ def skills_allowed(level: str | None = None) -> bool:
 
 def autopilot_default_on(level: str | None = None) -> bool:
     return (level or settings.autonomy_level) == "autonomous"
+
+
+# A second, independent dial — see Settings.write_skills_mode and
+# core/skills/loop.py. autonomy_level above gates whether skills run at
+# all; this gates the write-capable subset (Skill.read_only is False)
+# specifically, once skills are already allowed.
+WRITE_SKILLS_MODES = ("manual", "assisted", "autonomous")
+
+WRITE_SKILLS_DESCRIPTIONS: dict[str, str] = {
+    "manual": "Write-capable skills (files, journal, identity, reminders, schedule) "
+    "are not executed — read-only skills are unaffected.",
+    "assisted": "Write-capable skills run normally, but are logged under a distinct "
+    "audit event type for easy review.",
+    "autonomous": "Write-capable skills run exactly like any other skill. Default.",
+}

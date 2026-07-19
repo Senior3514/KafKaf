@@ -95,6 +95,10 @@ class AutonomyRequest(BaseModel):
     level: str
 
 
+class WriteSkillsModeRequest(BaseModel):
+    mode: str
+
+
 class WorkspaceRequest(BaseModel):
     path: str
 
@@ -208,6 +212,32 @@ async def set_autonomy(request: AutonomyRequest) -> dict:
     }
 
 
+@app.get("/skills/write-mode")
+async def write_skills_mode_status() -> dict:
+    return {
+        "mode": settings.write_skills_mode,
+        "description": autonomy.WRITE_SKILLS_DESCRIPTIONS[settings.write_skills_mode],
+    }
+
+
+@app.post("/skills/write-mode")
+async def set_write_skills_mode(request: WriteSkillsModeRequest) -> dict:
+    """A second, independent dial from /autonomy — see
+    Settings.write_skills_mode. Live for this process immediately, same
+    scope caveats as /autonomy (doesn't reach a separate autopilot
+    container, doesn't persist without KAFKAF_WRITE_SKILLS_MODE also set)."""
+    if request.mode not in autonomy.WRITE_SKILLS_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown write-skills mode {request.mode!r}. Must be one of {autonomy.WRITE_SKILLS_MODES}.",
+        )
+    settings.write_skills_mode = request.mode
+    return {
+        "mode": settings.write_skills_mode,
+        "description": autonomy.WRITE_SKILLS_DESCRIPTIONS[settings.write_skills_mode],
+    }
+
+
 @app.get("/autopilot/status")
 async def autopilot_status() -> dict:
     """Whether an emergency stop is currently in effect for autopilot.
@@ -282,6 +312,10 @@ async def status() -> dict:
             "level": settings.autonomy_level,
             "description": autonomy.DESCRIPTIONS[settings.autonomy_level],
             "skills_allowed": autonomy.skills_allowed(),
+        },
+        "write_skills_mode": {
+            "mode": settings.write_skills_mode,
+            "description": autonomy.WRITE_SKILLS_DESCRIPTIONS[settings.write_skills_mode],
         },
         "council": {
             "configured": bool(council_brains),

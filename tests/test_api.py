@@ -248,6 +248,37 @@ def test_set_autonomy_rejects_unknown_level():
     assert "godmode" in response.json()["detail"]
 
 
+def test_set_write_skills_mode_blocks_write_skill_live(monkeypatch, tmp_path):
+    """A second, independent dial from /autonomy — gates the write-capable
+    skill subset specifically, live, no restart."""
+    monkeypatch.setattr("kafkaf.core.config.settings.autonomy_level", "autonomous")
+    monkeypatch.setattr("kafkaf.core.config.settings.write_skills_mode", "autonomous")
+    monkeypatch.setattr("kafkaf.core.config.settings.skills_workspace_dir", str(tmp_path))
+
+    with TestClient(app) as client:
+        response = client.post("/skills/write-mode", json={"mode": "manual"})
+        assert response.status_code == 200
+        assert response.json()["mode"] == "manual"
+
+        status_response = client.get("/status")
+        assert status_response.json()["write_skills_mode"]["mode"] == "manual"
+
+
+def test_set_write_skills_mode_rejects_unknown_mode():
+    with TestClient(app) as client:
+        response = client.post("/skills/write-mode", json={"mode": "godmode"})
+    assert response.status_code == 400
+    assert "godmode" in response.json()["detail"]
+
+
+def test_write_skills_mode_endpoint_returns_current_mode():
+    with TestClient(app) as client:
+        response = client.get("/skills/write-mode")
+    assert response.status_code == 200
+    assert "mode" in response.json()
+    assert "description" in response.json()
+
+
 def test_autopilot_stop_resume_from_the_gui(monkeypatch, tmp_path):
     """The Control Panel's Emergency Stop button — same stop-file mechanism
     as kafkaf-autopilot-ctl, no terminal needed. Also reported in /status

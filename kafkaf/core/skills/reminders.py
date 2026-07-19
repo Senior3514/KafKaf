@@ -4,6 +4,7 @@ from kafkaf.core.skills.base import Skill
 
 class RemindersSkill(Skill):
     name = "reminders"
+    read_only = False  # supports "add <text>" / "done <id>"
     description = "Manage a persistent reminder list. Usage: 'add <text>', 'list', or 'done <id>'."
 
     async def run(self, arg: str) -> str:

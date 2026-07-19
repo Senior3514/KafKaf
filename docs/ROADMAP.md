@@ -956,6 +956,59 @@ depends on a big-bang release — "grow it over time."
       autonomy dial and the sandbox, none of it unattended arbitrary code
       execution.
 
+- [x] **Phase 34 — A real read-only/write permission dial for skills**:
+      the "build Hermes Agent" ask came a fifth time, but with something
+      new and genuinely actionable attached — a request to choose between
+      manual/semi-autonomous/autonomous specifically for read-only vs
+      write/click/execute skills. That's a real, concrete permission-
+      granularity system, not a repeat of "give it everything," and it's
+      exactly the kind of specific technical spec this session had
+      repeatedly said was the bar for reconsidering anything closer to
+      broader capability. Built the honest, buildable core of it:
+      - Every `Skill` now declares `read_only` (defaults `True`); the five
+        skills that can mutate something within the sandbox — `files`,
+        `journal`, `identity`, `reminders`, `schedule` — override it to
+        `False`. Classified per-skill, not per-argument (a conservative,
+        simple default, not a hole).
+      - A new, independent `write_skills_mode` dial
+        (manual/assisted/autonomous, default `autonomous` — no behavior
+        change for existing installs) sits alongside `autonomy_level`:
+        the existing dial gates whether skills run *at all*; this one
+        gates the write-capable subset specifically, once skills are
+        already allowed. `manual` blocks write skills outright (clean
+        observation, not executed); `assisted` runs them but logs them
+        under a distinct `skill_write` audit event type for easy review;
+        `autonomous` is today's behavior, unchanged.
+      - Honest scope note, stated directly in the docs too: "manual"
+        here means "off until you switch modes," not a pause-and-
+        resume "click to approve, then continue" flow — a synchronous
+        `/chat` call has no mechanism to pause mid-turn and resume
+        later. This is the same pattern the `observe` autonomy tier
+        already uses, applied to a narrower slice of the skill set, not
+        a new kind of gate.
+      - Exposed everywhere the autonomy dial already is, for consistency:
+        `GET`/`POST /skills/write-mode`, `GET /status`, a second button
+        row in the Control Panel right under the autonomy buttons
+        (reusing the same CSS, careful to scope each row's click handler
+        so a shared `.autonomy-btn` class doesn't cross-wire the two
+        independent dials), and `kafkaf write-skills --set <mode>` in the
+        CLI.
+      - "Write/click/execute" in the original ask is answered as write —
+        the existing sandboxed skills that already mutate state. Click
+        (driving a real UI) and execute (arbitrary code) remain out of
+        scope for the same three reasons restated at phase 30 and every
+        prior assessment; this system makes the already-safe skill set
+        genuinely tunable, it does not add either as new capabilities.
+
+      Verified: skill classification tests (five write-capable, seventeen
+      read-only), loop-level tests proving a write skill is blocked at
+      `manual`/logged distinctly at `assisted`/unaffected at
+      `autonomous`, a read-only skill unaffected by this dial at any
+      setting, API tests for the live endpoint and its validation, and a
+      live Playwright pass confirming the two button rows are visually
+      and functionally independent (clicking one never touches the
+      other's active state) in both languages.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

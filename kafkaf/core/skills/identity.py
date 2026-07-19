@@ -13,6 +13,7 @@ _DEFAULT_IDENTITY = (
 
 class IdentitySkill(Skill):
     name = "identity"
+    read_only = False  # supports "write <description>"
     description = (
         "A persistent self-description file, confined to the sandboxed workspace — "
         "who KafKaf is, what it's learned about itself, how it wants to come across. "

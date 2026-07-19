@@ -431,3 +431,20 @@ class TestRssCaching:
         assert first == second
         assert "Hello" in first
         assert calls["n"] == 1
+
+
+class TestReadOnlyClassification:
+    def test_write_capable_skills_are_marked_not_read_only(self):
+        from kafkaf.core.skills.registry import SKILLS_BY_NAME
+
+        write_capable = {"files", "journal", "identity", "reminders", "schedule"}
+        for name in write_capable:
+            assert SKILLS_BY_NAME[name].read_only is False, f"{name} should be write-capable"
+
+    def test_every_other_skill_is_read_only(self):
+        from kafkaf.core.skills.registry import SKILLS_BY_NAME
+
+        write_capable = {"files", "journal", "identity", "reminders", "schedule"}
+        for name, skill in SKILLS_BY_NAME.items():
+            if name not in write_capable:
+                assert skill.read_only is True, f"{name} should be read-only"
