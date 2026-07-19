@@ -71,9 +71,20 @@ class ChatRequest(BaseModel):
     skills: bool = False
 
 
+class PendingApprovalOut(BaseModel):
+    approval_id: int
+    skill_name: str
+    skill_arg: str
+
+
 class ChatResponse(BaseModel):
-    reply: str
+    reply: str | None = None
     session_id: str
+    # Set instead of reply when a requested skill (run_code,
+    # browser_automate) needs a live human approve/deny click before it
+    # can run — see /skills/approvals/{id}/approve|deny, which return this
+    # exact same response shape so the frontend has one rendering path.
+    pending_approval: PendingApprovalOut | None = None
 
 
 class TeachRequest(BaseModel):
@@ -148,11 +159,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
             )
 
     try:
-        reply = await council.handle_chat(
+        outcome = await council.handle_chat(
             request.session_id,
             request.message,
             request.persona,
             brain=brain,
+            brain_spec=request.brain,
             council_brains=council_brains,
             use_skills=request.skills,
         )
@@ -174,7 +186,42 @@ async def chat(request: ChatRequest) -> ChatResponse:
             "and is the model pulled? See docs/USAGE.md#common-day-to-day-commands.",
         ) from exc
 
-    return ChatResponse(reply=reply, session_id=request.session_id)
+    return _chat_response(outcome)
+
+
+def _chat_response(outcome: council.ChatOutcome) -> ChatResponse:
+    pending = (
+        PendingApprovalOut(**outcome.pending_approval) if outcome.pending_approval else None
+    )
+    return ChatResponse(reply=outcome.reply, session_id=outcome.session_id, pending_approval=pending)
+
+
+async def _decide_approval(approval_id: int, decision: str) -> ChatResponse:
+    try:
+        outcome = await council.resume_chat(approval_id, decision)
+    except council.ApprovalNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except council.ApprovalAlreadyDecidedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        reason = str(exc) or type(exc).__name__
+        raise HTTPException(status_code=502, detail=f"Couldn't resume the conversation ({reason}).") from exc
+    return _chat_response(outcome)
+
+
+@app.post("/skills/approvals/{approval_id}/approve", response_model=ChatResponse)
+async def approve_skill_action(approval_id: int) -> ChatResponse:
+    return await _decide_approval(approval_id, "approved")
+
+
+@app.post("/skills/approvals/{approval_id}/deny", response_model=ChatResponse)
+async def deny_skill_action(approval_id: int) -> ChatResponse:
+    return await _decide_approval(approval_id, "denied")
+
+
+@app.get("/skills/approvals")
+async def list_pending_approvals(status: str = "pending") -> list[dict]:
+    return skills_store.list_approvals(status=status)
 
 
 @app.get("/audit")
@@ -325,6 +372,7 @@ async def status() -> dict:
         "default_teacher": f"ollama:{settings.ollama_model}",
         "skills_workspace_dir": settings.skills_workspace_dir,
         "autopilot": {"stopped": is_stop_requested(_default_stop_file())},
+        "pending_approvals": {"count": len(skills_store.list_approvals(status="pending"))},
     }
 
 

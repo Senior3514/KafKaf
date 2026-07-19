@@ -136,25 +136,75 @@ buttons right under the Autonomy section), `kafkaf write-skills --set
 <mode>`, or `POST /skills/write-mode` — same live-immediate,
 this-process-only scope as the autonomy dial above.
 
-Honest about what "manual" means here: there's no pause-and-resume
-"click to approve, then the model continues" flow — a synchronous
-`/chat` request/response has no mechanism to pause mid-turn and resume
-later. `manual` means write skills are off until you switch modes,
-consistent with how `observe` already works for the autonomy dial
-above — not a new kind of gate, the same pattern applied to a narrower
-slice of the skill set.
+Honest about what "manual" means here for `files`/`journal`/`identity`/
+`reminders`/`schedule`: there's no pause-and-resume "click to approve,
+then the model continues" flow for these — `manual` means they're off
+until you switch modes, consistent with how `observe` already works for
+the autonomy dial above. Two other skills, `run_code` and
+`browser_automate`, work differently — see the next section.
 
 **Why a dial, not just more flags:** every capability KafKaf gains that a
 human doesn't review turn-by-turn (autopilot's unattended cycles, in
 particular) is a materially different kind of risk than one a human
 explicitly triggers per chat. `observe`/`assisted`/`autonomous` makes that
 distinction a single, visible setting instead of something you have to
-reconstruct from several independent flags. There isn't a "beyond
-autonomous" tier yet — the next one unlocks only once a capability with
-that same "safe for a human-gated chat turn but not for the unattended
-loop" shape (like sandboxed code execution — see `docs/ROADMAP.md`) has a
-real answer for keeping it out of autopilot's reach, not just a flag that
-says so.
+reconstruct from several independent flags.
+
+### Approval-gated skills — real code execution and browser automation, always human-checked
+
+`run_code` (real Python execution) and `browser_automate` (real
+click/fill/submit in an isolated headless browser) are categorically
+higher-risk than the other write-capable skills above, so they get a
+stricter rule than `write_skills_mode` alone: **every single call always
+pauses and waits for a live human to click Approve or Deny, no matter
+what `write_skills_mode` is set to** — `manual` still blocks them
+outright with no prompt (same as any other write skill), but at
+`assisted`/`autonomous` there is no "runs unattended" tier for these two,
+ever, from the interactive web GUI/CLI. This is a real pause-and-resume
+mechanism, not the "off until you switch modes" shape `manual` uses
+elsewhere: the model's request is held (`skill_approvals` table) and the
+conversation genuinely continues once you decide, including if the model
+immediately asks for a second gated action — each one gets its own
+approval.
+
+In the web GUI, an approval shows up as an amber bubble right in the
+chat with **Approve & run** / **Deny** buttons — nothing happens until
+you click one. The CLI doesn't have an approve/deny UI yet; a gated
+skill call from `kafkaf chat`/`kafkaf repl` reports that it's paused and
+points you to the web GUI for that turn.
+
+Both are **structurally unreachable from the unattended `autopilot`
+loop** — the `schedule` skill refuses to schedule either of them
+(`error: ... requires human approval ... can't be scheduled`), and
+council mode (multiple brains fanned out in parallel) auto-denies a
+gated call rather than trying to pause several brains at once. This
+closes the gap the write-skills dial alone couldn't: an always-on loop
+with no human watching never gets a path to real code execution or
+browser automation, by construction, not by convention.
+
+**Isolation is honest, not oversold.** `run_code` (Python only,
+argument-list `subprocess.run`, never a shell) is process-level
+sandboxing: a workspace-jailed working directory, a hard wall-clock
+timeout (`KAFKAF_RUN_CODE_TIMEOUT_SECONDS`, default 10s), and capped
+output — not kernel/container isolation, and no network blocking is
+guaranteed. In the Docker deployment this backend already runs inside a
+container, so a spawned subprocess inherits that container's
+filesystem/network boundary for free; running the desktop app (no
+Docker) has no such boundary at all — **your approval click is the real
+safety control there, not the sandbox.** `browser_automate` only ever
+drives a fresh, isolated, headless Chromium context (never your real
+browser/profile/cookies, never any other window or application on your
+machine), one atomic action per approval (`goto`/`click`/`fill`/
+`submit`), with no session/login persistence across separate calls in
+this version.
+
+**Deliberately not built, at all:** general OS-level desktop automation
+(controlling the mouse/keyboard over your whole screen, clicking
+arbitrary windows). Only sandboxed *browser* automation exists. Full
+desktop input injection can reach password managers, banking apps, and
+security dialogs, and isn't made safe just by adding an approval click,
+since you can't fully audit what an arbitrary desktop click will do
+before approving it — see `docs/ROADMAP.md` for the full reasoning.
 
 ## Tailscale access layer
 
@@ -463,9 +513,11 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The twenty-two skills that ship today, all working with no API key
-required (`browser_render` additionally needs the optional `browser`
-extra — see below the table):
+The twenty-four skills that ship today, all working with no API key
+required (`browser_render`/`browser_automate` additionally need the
+optional `browser` extra — see below the table). `run_code` and
+`browser_automate` always pause for a live approval click before they
+run — see [Approval-gated skills](#approval-gated-skills--real-code-execution-and-browser-automation-always-human-checked) above:
 
 | Skill | What it does |
 |---|---|
@@ -491,6 +543,8 @@ extra — see below the table):
 | `hash_text` | md5/sha1/sha256 of a piece of text |
 | `random_pick` | Dice rolls or picking randomly from a list of options |
 | `text_stats` | Word/character/sentence count and estimated reading time |
+| `run_code` | Run real Python code and return stdout/stderr — process-level sandboxed, always pauses for approval |
+| `browser_automate` | `goto`/`click`/`fill`/`submit` in an isolated headless browser — always pauses for approval |
 
 `browser_render` needs the optional `browser` extra, and a real browser
 binary on top of that (a `pip install` alone isn't enough — same
@@ -523,11 +577,6 @@ as `calculator`'s hand-rolled safe eval). Drop files into the workspace
 with the `files` skill's `write` command (or directly on disk), then
 search their actual content instead of just their names.
 
-**Not shipped on purpose**: raw code execution. A rushed, half-sandboxed
-exec skill is a real security hole; it'll come once it's genuinely
-isolated (subprocess + resource limits, or container isolation), not
-before.
-
 Skills mode combines with council mode — turn both on and every council
 brain runs the tool-use loop independently before its answer is
 synthesized (`{"council": true, "skills": true}`, or both toggles/flags at
@@ -554,6 +603,7 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | `KAFKAF_GEMINI_API_KEY`      | unset                      | Enables `gemini:*` as a teacher        |
 | `KAFKAF_COUNCIL_BRAINS`      | unset                      | Comma-separated brains for council mode |
 | `KAFKAF_SKILLS_WORKSPACE_DIR` | `workspace`               | Sandboxed directory for the `files`/`document_search` skills |
+| `KAFKAF_RUN_CODE_TIMEOUT_SECONDS` | `10`                  | Hard wall-clock timeout for the `run_code` skill's sandboxed subprocess |
 | `KAFKAF_RATE_LIMIT_PER_MINUTE` | `120`                    | Requests/minute per client IP before `429` (`0` disables) |
 | `KAFKAF_OLLAMA_MEM_LIMIT`    | `8g`                        | Container memory cap for Ollama — raise if using the `qwen3:14b` tier |
 | `KAFKAF_BACKEND_MEM_LIMIT`   | `2g`                        | Container memory cap for the backend    |

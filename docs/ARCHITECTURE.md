@@ -165,10 +165,23 @@ other. Reachable via `/chat`'s `skills: true`, `kafkaf chat --skills` /
 `kafkaf repl --skills`, and a web GUI toggle (both toggles can be on at
 once).
 
-**Deliberately not shipped**: raw code execution. A hastily-sandboxed exec
-skill is a real vulnerability, not a convenience — a properly isolated
-version (subprocess with resource limits, or container isolation) is a
-real follow-up, not something to rush.
+Two skills, `run_code` (real Python execution) and `browser_automate`
+(click/fill/submit in an isolated headless browser), are categorically
+higher-risk than the rest and carry a new `Skill.requires_approval`
+flag (alongside the existing `read_only`). `run_skill_loop` now returns
+a typed `SkillLoopResult` (`reply` or `pending_approval`) instead of a
+bare string: hitting a `requires_approval` skill persists the paused
+conversation (`core/skills/store.py`'s `skill_approvals` table) and
+returns immediately rather than executing, waiting for a live human
+decision via `POST /skills/approvals/{id}/approve|deny`
+(`core/council.py`'s `resume_chat`), which resumes the same loop —
+possibly pausing again on a second gated call. Never reachable from the
+unattended `autopilot` loop (the `schedule` skill refuses to schedule
+either one) and auto-denied in council mode rather than pausing several
+parallel brains. **Deliberately not shipped**: general OS-level desktop
+automation (mouse/keyboard control over the whole screen) — only
+sandboxed browser automation exists. See `docs/ROADMAP.md` phase 38 for
+the full design and reasoning.
 
 ## Memory
 

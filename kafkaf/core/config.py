@@ -13,12 +13,17 @@ class Settings(BaseSettings):
     # A second, independent dial: autonomy_level gates whether skills run
     # at all; this gates the write-capable subset specifically (files,
     # journal, identity, reminders, schedule — see Skill.read_only) once
-    # skills are already allowed. "manual" blocks them outright (no
-    # pause-and-resume confirmation flow exists yet — see
-    # core/skills/loop.py); "assisted" runs them but audit-logs them under
-    # a distinct event type for easy review; "autonomous" is today's
-    # unchanged default.
+    # skills are already allowed. "manual" blocks them outright; "assisted"
+    # runs them but audit-logs them under a distinct event type for easy
+    # review; "autonomous" is today's unchanged default. Independent of
+    # Skill.requires_approval (run_code, browser_automate) — those always
+    # pause for a live human click when allowed at all, at every mode
+    # except "manual" (which blocks them the same as any other write
+    # skill, no prompt shown) — see core/skills/loop.py.
     write_skills_mode: Literal["manual", "assisted", "autonomous"] = "autonomous"
+
+    # Hard wall-clock timeout for the run_code skill's sandboxed subprocess.
+    run_code_timeout_seconds: int = 10
 
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "qwen3:4b"
