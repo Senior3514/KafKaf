@@ -1049,6 +1049,26 @@ depends on a big-bang release — "grow it over time."
       and FastAPI's default `StaticFiles` response headers (no aggressive
       caching directives set).
 
+- [x] **Phase 36 — Fixed the chat window pinning to the top with a huge
+      empty gap below**: once the phase 35 cache fix confirmed a
+      screenshot of the real, current GUI, it showed a second, genuine
+      bug: `.chat` (`kafkaf/clients/web/static/style.css`) is a
+      `flex-direction: column` container with no `justify-content` set,
+      so its flex default (`flex-start`) pins a short conversation to the
+      top of the window and leaves everything below it empty — the
+      opposite of every mainstream chat UI (WhatsApp, Slack, ChatGPT,
+      Claude), which anchors messages to the bottom, next to the
+      composer, so a two-message conversation doesn't look like most of
+      the app is broken or missing. Fixed with one line,
+      `justify-content: flex-end`. The empty-state welcome card
+      (`.welcome-card`) already used `margin: auto`, which — by design in
+      flexbox — overrides a parent's `justify-content` on that axis, so it
+      keeps rendering centered rather than also snapping to the bottom.
+      Verified live: real server, real Chromium, before/after
+      `getBoundingClientRect()` measurements of the message bubble in a
+      900px-tall viewport (712px of dead space below the bubble before,
+      ~190px — ordinary padding — after) plus screenshots of both states.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

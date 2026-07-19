@@ -271,6 +271,12 @@ body {
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
+  /* Anchor short conversations to the bottom, next to the composer, instead
+     of the flex default (flex-start) which pins them to the top and leaves
+     a large empty void below — every mainstream chat UI (WhatsApp, Slack,
+     ChatGPT, Claude) anchors this way; this one didn't, and looked broken
+     with only a couple of messages. */
+  justify-content: flex-end;
   gap: var(--space-3);
   width: 100%;
   max-width: var(--content-width);
