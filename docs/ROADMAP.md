@@ -902,6 +902,27 @@ depends on a big-bang release — "grow it over time."
       package) and skip cleanly without one, mirroring
       `torch = pytest.importorskip("torch")` elsewhere in this suite.
 
+- [x] **Phase 32 — Autopilot keeps the model's self-description current,
+      the third safe increment**: the `identity` skill (phase 28) was
+      read/write on demand only — it changed just when a user happened to
+      ask. Now the autopilot loop maintains it on its own:
+      `refresh_identity()` runs every N training rounds (default 3, CLI
+      `--identity-refresh-every`, 0 disables), asking the teacher model to
+      fold the most recent training reflections into the *existing*
+      self-description (accumulate, don't reset), then writing the result
+      back through the same `IdentitySkill` the chat path uses — so the
+      file's sandbox rules and the one-source-of-truth stay intact. Driven
+      by the capable teacher, never the tiny own model editing itself
+      (same reasoning as reflection and curriculum growth); a failed
+      refresh is caught and never kills the loop; audit-logged as
+      `autopilot_identity_refresh`. Tests prove: the refresh fires exactly
+      once at a 3-round interval and never at interval 0, the teacher
+      receives both the current description and the recent reflections,
+      and the output is actually persisted to the identity file (not just
+      returned). This is the honest, safe core of "the model has a soul /
+      thoughts / self that develops on its own over time" — a real file it
+      genuinely maintains about itself, unattended, within the sandbox.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

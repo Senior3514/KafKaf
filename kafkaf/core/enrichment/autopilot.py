@@ -38,7 +38,9 @@ DEFAULT_TRAIN_EVERY = 5
 DEFAULT_TRAIN_STEPS = 100
 DEFAULT_TOPICS_PER_GROWTH = 5
 DEFAULT_STOP_FILE = "autopilot.stop"
+DEFAULT_IDENTITY_REFRESH_EVERY = 3  # every Nth training round, not every one — each refresh should have more than one reflection to fold in
 STOP_POLL_SECONDS = 5
+MAX_RECENT_REFLECTIONS = 5
 
 
 def _default_stop_file() -> str:
@@ -155,6 +157,38 @@ async def reflect_on_progress(teacher_spec: str, recent_topics: list[str], train
     return reflection
 
 
+async def refresh_identity(teacher_spec: str, recent_reflections: list[str]) -> str:
+    """Periodic, teacher-driven refresh of the identity skill's self-
+    description file (kafkaf/core/skills/identity.py), so it stays
+    genuinely self-maintaining over time instead of only updated when a
+    user happens to ask for it in conversation. Folds recent training
+    reflections into the existing description rather than replacing it
+    from scratch, so it accumulates rather than resets each time."""
+    if teacher_spec == "own":
+        raise ValueError("identity refresh needs a real teacher — 'own' is the model being trained.")
+    from kafkaf.core.skills.identity import IdentitySkill
+
+    identity_skill = IdentitySkill()
+    current = await identity_skill.run("show")
+    brain = get_brain(teacher_spec)
+    listed = "\n".join(f"- {r}" for r in recent_reflections) if recent_reflections else "(none yet)"
+    prompt = (
+        "This is a small private assistant model's current self-description:\n\n"
+        f"{current}\n\n"
+        "Here are its most recent reflections on what it has learned:\n"
+        f"{listed}\n\n"
+        "Write an updated self-description (3-5 plain sentences, no preamble, "
+        "no markdown headers) that folds in anything genuinely new from those "
+        "reflections. Keep what's still true; do not invent capabilities it "
+        "doesn't have."
+    )
+    updated = await brain.generate([{"role": "user", "content": prompt}])
+    updated = updated.strip()
+    if updated:
+        await identity_skill.run(f"write {updated}")
+    return updated
+
+
 def run_forever(
     teachers: list[str],
     topics_path: str | None,
@@ -165,6 +199,7 @@ def run_forever(
     dynamic_curriculum: bool = False,
     topics_per_growth: int = DEFAULT_TOPICS_PER_GROWTH,
     stop_file: str = DEFAULT_STOP_FILE,
+    identity_refresh_every: int = DEFAULT_IDENTITY_REFRESH_EVERY,
 ) -> None:
     enrichment_store.init_db()
     audit_store.init_db()
@@ -172,6 +207,8 @@ def run_forever(
 
     cycle = 0
     taught_since_last_train: list[str] = []
+    recent_reflections: list[str] = []
+    train_rounds = 0
     while max_cycles is None or cycle < max_cycles:
         if is_stop_requested(stop_file):
             print(f"[autopilot] stop requested via {stop_file!r} — halting.")
@@ -235,12 +272,30 @@ def run_forever(
                         audit_store.log_event(
                             "autopilot_reflection", reflection_teacher, reflection[:300]
                         )
+                        recent_reflections.append(reflection)
+                        recent_reflections = recent_reflections[-MAX_RECENT_REFLECTIONS:]
                 except Exception as exc:  # a bad reflection call must not kill the loop
                     print(f"[autopilot] reflection failed: {exc}")
                     audit_store.log_event(
                         "autopilot_error", reflection_teacher, f"reflection failed: {exc}"
                     )
                 taught_since_last_train = []
+
+                train_rounds += 1
+                if identity_refresh_every > 0 and train_rounds % identity_refresh_every == 0:
+                    identity_teacher = next_teacher(teachers, cycle)
+                    try:
+                        updated = asyncio.run(refresh_identity(identity_teacher, recent_reflections))
+                        if updated:
+                            print(f"[autopilot] identity refreshed: {updated}")
+                            audit_store.log_event(
+                                "autopilot_identity_refresh", identity_teacher, updated[:300]
+                            )
+                    except Exception as exc:  # a bad identity call must not kill the loop
+                        print(f"[autopilot] identity refresh failed: {exc}")
+                        audit_store.log_event(
+                            "autopilot_error", identity_teacher, f"identity refresh failed: {exc}"
+                        )
             except ValueError as exc:
                 print(f"[autopilot] training skipped: {exc}")
 
@@ -271,6 +326,10 @@ def autopilot(
     topics_per_growth: int = typer.Option(
         DEFAULT_TOPICS_PER_GROWTH, help="How many new topics to request per curriculum growth round."
     ),
+    identity_refresh_every: int = typer.Option(
+        DEFAULT_IDENTITY_REFRESH_EVERY,
+        help="Refresh the model's self-description (identity.md) every N training rounds. 0 disables it.",
+    ),
     stop_file: str = typer.Option(
         _default_stop_file(),
         help="Emergency-stop file — checked every few seconds; touch it (or run "
@@ -297,6 +356,7 @@ def autopilot(
         dynamic_curriculum,
         topics_per_growth,
         stop_file,
+        identity_refresh_every,
     )
 
 

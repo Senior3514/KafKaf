@@ -363,6 +363,17 @@ time. This is the teacher generating what to learn next, not the small
 owned model directing its own training (which is far too weak early on to
 do that usefully) — an honest distinction worth keeping in mind.
 
+**Self-maintaining identity**: every few training rounds (default 3,
+`--identity-refresh-every N`, `0` disables) autopilot asks the current
+teacher to fold the model's most recent training reflections into its
+`identity.md` self-description — the same file the `identity` skill reads
+and writes in chat — so the model's sense of "who it is and what it's
+learned" stays current on its own, not only when someone asks. It
+accumulates into the existing description rather than resetting it, and
+like every other autopilot step it's driven by the capable teacher (never
+the tiny model editing itself), caught if it fails so it can't kill the
+loop, and recorded in the audit log.
+
 The defaults are deliberately conservative, not "as fast as possible" — an
 unattended loop hammering a paid API or a CPU flat-out is a cost/stability
 risk, not a feature. Switching a teacher to `openai:`/`anthropic:`/
