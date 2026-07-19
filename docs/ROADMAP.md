@@ -1009,6 +1009,46 @@ depends on a big-bang release — "grow it over time."
       and functionally independent (clicking one never touches the
       other's active state) in both languages.
 
+- [x] **Phase 35 — Fixed the real reason updates looked invisible**: after
+      four straight rounds of real, shipped, live-verified changes (phases
+      30-34: full GUI redesign, new Control Panel sections, Emergency Stop,
+      the permission dial), the user reported running `deploy/update.sh`
+      and reinstalling fresh, and seeing *zero* visible change — "looks
+      exactly the same." That's a serious claim and was investigated as a
+      real bug, not dismissed. Root cause found in
+      `kafkaf/clients/web/static/sw.js`: the PWA service worker used a
+      **cache-first** fetch strategy (`caches.match(request).then(cached
+      => cached || fetch(request))`) under a `CACHE_NAME` that had never
+      been bumped since it was first introduced. Once a browser cached
+      `/`, `app.js`, and `style.css` on its very first visit, it never
+      asked the network for those files again — every update this project
+      has ever shipped was invisible to any already-installed user,
+      forever, regardless of how many times they updated the backend.
+      This is the single most likely explanation for the report.
+      Fixed by switching to **network-first, cache only as an offline
+      fallback**: `fetch(request, {cache: "no-store"})` first, updating the
+      cache with whatever comes back, and only serving the cached copy if
+      the network request itself fails. The `{cache: "no-store"}` option
+      turned out to be load-bearing, not decorative — live-testing against
+      a real browser and a real server proved that without it, the
+      browser's own ordinary HTTP cache (a separate layer from the service
+      worker's Cache API) could still return a stale response with no
+      network round-trip at all, silently defeating the "network-first"
+      logic even though the code looked correct. `CACHE_NAME` was also
+      bumped (`v1` → `v2`) so every already-installed user's old, poisoned
+      cache gets purged by the existing `activate` handler's cleanup logic
+      the next time their browser picks up the new service worker script —
+      no extra migration step needed, since browsers always check `/sw.js`
+      itself against the network on a separate, un-interceptable path.
+      Verified live: real `uvicorn` server, real Chromium via Playwright,
+      confirmed the cache is populated on first load, then edited
+      `app.js` on disk and reloaded — confirmed the new content is served
+      immediately, not the stale cached copy. Also checked, and ruled out
+      as contributing causes: `Dockerfile` build-layer caching (fine —
+      `COPY kafkaf ./kafkaf` correctly invalidates on any source change)
+      and FastAPI's default `StaticFiles` response headers (no aggressive
+      caching directives set).
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
