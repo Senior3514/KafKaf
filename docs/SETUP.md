@@ -115,6 +115,35 @@ restart of this process unless `KAFKAF_AUTONOMY_LEVEL` is also updated —
 use the live switch for "try a different level right now," and the env
 var / `--autonomy` flag for "this is the level on every future start."
 
+### Write-skills mode — a second, independent dial
+
+`autonomy_level` above gates whether skills run *at all*. A separate
+dial gates the *write-capable* subset specifically, once skills are
+already allowed: `files`, `journal`, `identity`, `reminders`, and
+`schedule` can each mutate something (write a file, add a note/
+reminder/scheduled task, change `identity.md`); every other skill
+(`web_search`, `weather`, `calculator`, `browser_render`, etc.) is
+read-only and unaffected by this setting at any value.
+
+| Mode | What it does |
+|---|---|
+| `manual` | Write-capable skills are not executed — the model gets a clean "not executed, write skills are in manual mode" observation instead. Read-only skills are unaffected. |
+| `assisted` | Write-capable skills run normally, but are audit-logged under a distinct `skill_write` event type for easy after-the-fact review. |
+| **`autonomous`** (default) | Write-capable skills run exactly like any other skill — today's unchanged behavior. |
+
+Change it live from the web GUI's Control Panel (a second row of three
+buttons right under the Autonomy section), `kafkaf write-skills --set
+<mode>`, or `POST /skills/write-mode` — same live-immediate,
+this-process-only scope as the autonomy dial above.
+
+Honest about what "manual" means here: there's no pause-and-resume
+"click to approve, then the model continues" flow — a synchronous
+`/chat` request/response has no mechanism to pause mid-turn and resume
+later. `manual` means write skills are off until you switch modes,
+consistent with how `observe` already works for the autonomy dial
+above — not a new kind of gate, the same pattern applied to a narrower
+slice of the skill set.
+
 **Why a dial, not just more flags:** every capability KafKaf gains that a
 human doesn't review turn-by-turn (autopilot's unattended cycles, in
 particular) is a materially different kind of risk than one a human

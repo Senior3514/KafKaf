@@ -43,6 +43,7 @@ def _parse_when(when: str, now: datetime) -> datetime:
 
 class ScheduleSkill(Skill):
     name = "schedule"
+    read_only = False  # supports "add ..." / "cancel <id>"
     description = (
         "Schedule another skill to run once at a future time. "
         "Usage: 'add <when> <skill>: <arg>' (when is 'in 30m'/'in 2h'/'in 1d' or an "

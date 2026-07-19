@@ -55,6 +55,7 @@ async def test_broken_skill_does_not_crash_the_loop(monkeypatch):
     class BrokenSkill:
         name = "broken"
         description = "a skill that always fails, for testing error handling"
+        read_only = True
 
         async def run(self, arg: str) -> str:
             raise RuntimeError("kaboom")
@@ -67,6 +68,61 @@ async def test_broken_skill_does_not_crash_the_loop(monkeypatch):
     result = await run_skill_loop(brain, [{"role": "user", "content": "hi"}])
     assert result == "recovered"
     assert "kaboom" in brain.seen_messages[1][-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_write_skill_blocked_at_manual_mode(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.config.settings.write_skills_mode", "manual")
+    monkeypatch.setattr(
+        "kafkaf.core.config.settings.skills_workspace_dir", str(tmp_path / "workspace")
+    )
+    brain = ScriptedBrain(
+        ["ACTION: journal: add tried to write something", "FINAL ANSWER: blocked"]
+    )
+    result = await run_skill_loop(brain, [{"role": "user", "content": "hi"}])
+    assert result == "blocked"
+    observation = brain.seen_messages[1][-1]["content"]
+    assert "manual" in observation
+    assert "not executed" in observation
+    events = audit_store.recent_events()
+    assert any(e["event_type"] == "skill_write_blocked" and e["actor"] == "journal" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_read_only_skill_unaffected_by_manual_write_mode(monkeypatch):
+    monkeypatch.setattr("kafkaf.core.config.settings.write_skills_mode", "manual")
+    brain = ScriptedBrain(["ACTION: calculator: 3 + 4", "FINAL ANSWER: it's 7"])
+    result = await run_skill_loop(brain, [{"role": "user", "content": "hi"}])
+    assert result == "it's 7"
+    assert "OBSERVATION: 7" in brain.seen_messages[1][-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_write_skill_runs_at_assisted_mode_and_is_flagged(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.config.settings.write_skills_mode", "assisted")
+    monkeypatch.setattr(
+        "kafkaf.core.config.settings.skills_workspace_dir", str(tmp_path / "workspace")
+    )
+    brain = ScriptedBrain(["ACTION: journal: add a real note", "FINAL ANSWER: logged"])
+    result = await run_skill_loop(brain, [{"role": "user", "content": "hi"}])
+    assert result == "logged"
+    assert "logged: a real note" in brain.seen_messages[1][-1]["content"]
+    events = audit_store.recent_events()
+    assert any(e["event_type"] == "skill_write" and e["actor"] == "journal" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_write_skill_runs_at_autonomous_mode_as_plain_skill_event(monkeypatch, tmp_path):
+    monkeypatch.setattr("kafkaf.core.config.settings.write_skills_mode", "autonomous")
+    monkeypatch.setattr(
+        "kafkaf.core.config.settings.skills_workspace_dir", str(tmp_path / "workspace")
+    )
+    brain = ScriptedBrain(["ACTION: journal: add another note", "FINAL ANSWER: logged"])
+    result = await run_skill_loop(brain, [{"role": "user", "content": "hi"}])
+    assert result == "logged"
+    events = audit_store.recent_events()
+    assert any(e["event_type"] == "skill" and e["actor"] == "journal" for e in events)
+    assert not any(e["event_type"] == "skill_write" for e in events)
 
 
 @pytest.mark.asyncio

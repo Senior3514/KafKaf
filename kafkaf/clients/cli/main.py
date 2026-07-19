@@ -145,6 +145,30 @@ def autonomy(
 
 
 @app.command()
+def write_skills(
+    set_mode: str = typer.Option(
+        None, "--set", help="Change the write-skills mode (manual/assisted/autonomous) for the running backend."
+    ),
+    url: str = typer.Option(DEFAULT_URL, help="KafKaf backend URL."),
+) -> None:
+    """Show, or change, the write-skills mode — a second, independent dial
+    from autonomy that gates write-capable skills (files, journal,
+    identity, reminders, schedule) specifically, once skills are already
+    allowed at all."""
+    if set_mode:
+        response = httpx.post(f"{url}/skills/write-mode", json={"mode": set_mode}, timeout=30.0)
+        if response.is_error:
+            detail = response.json().get("detail", response.text) if response.text else response.text
+            raise httpx.HTTPStatusError(detail, request=response.request, response=response)
+    else:
+        response = httpx.get(f"{url}/skills/write-mode", timeout=30.0)
+        response.raise_for_status()
+    info = response.json()
+    typer.echo(f"mode: {info['mode']}")
+    typer.echo(info["description"])
+
+
+@app.command()
 def workspace(
     set_path: str = typer.Option(
         None, "--set", help="Point filesystem-touching skills (files, document_search, journal) at this directory."
