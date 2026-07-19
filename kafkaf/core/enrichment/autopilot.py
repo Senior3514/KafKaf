@@ -19,16 +19,20 @@ just once per cycle) and halts within that window — see ctl_app below.
 import asyncio
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
 
+from kafkaf.core import autonomy
 from kafkaf.core.audit import store as audit_store
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
 from kafkaf.core.enrichment import service
 from kafkaf.core.enrichment import store as enrichment_store
 from kafkaf.core.enrichment.topics import load_topics
+from kafkaf.core.skills import store as skills_store
+from kafkaf.core.skills.registry import run_due_schedules
 
 app = typer.Typer(help="Run KafKaf's autonomous teach-and-train curriculum loop.")
 ctl_app = typer.Typer(help="Control a running kafkaf-autopilot process (emergency stop / resume).")
@@ -203,6 +207,7 @@ def run_forever(
 ) -> None:
     enrichment_store.init_db()
     audit_store.init_db()
+    skills_store.init_db()
     topics = load_topics(topics_path)
 
     cycle = 0
@@ -214,6 +219,24 @@ def run_forever(
             print(f"[autopilot] stop requested via {stop_file!r} — halting.")
             audit_store.log_event("autopilot_stop", None, f"stop file {stop_file!r} seen before cycle {cycle}")
             break
+
+        # Run any scheduled skill tasks that are now due — gated by the same
+        # autonomy level as every other skill run (at 'observe', nothing
+        # fires). Only triggers already-registered skills; adds no new
+        # capability, just deferred execution.
+        if autonomy.skills_allowed():
+            try:
+                now_iso = datetime.now(timezone.utc).isoformat()
+                for task in asyncio.run(run_due_schedules(now_iso)):
+                    print(f"[autopilot] ran scheduled #{task['id']} {task['skill_name']}: {task['result'][:120]}")
+                    audit_store.log_event(
+                        "autopilot_scheduled_run",
+                        task["skill_name"],
+                        f"#{task['id']} arg={task['skill_arg']!r} -> {task['result'][:200]}",
+                    )
+            except Exception as exc:  # a scheduling failure must not kill the loop
+                print(f"[autopilot] scheduled-run check failed: {exc}")
+                audit_store.log_event("autopilot_error", None, f"scheduled-run check failed: {exc}")
 
         if dynamic_curriculum and cycle > 0 and cycle % len(topics) == 0:
             growth_teacher = next_teacher(teachers, cycle)
