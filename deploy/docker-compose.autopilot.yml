@@ -35,6 +35,7 @@ services:
       AUTOPILOT_INTERVAL_SECONDS: ${KAFKAF_AUTOPILOT_INTERVAL_SECONDS:-300}
       AUTOPILOT_TRAIN_EVERY: ${KAFKAF_AUTOPILOT_TRAIN_EVERY:-5}
       AUTOPILOT_TRAIN_STEPS: ${KAFKAF_AUTOPILOT_TRAIN_STEPS:-100}
+      AUTOPILOT_IDENTITY_REFRESH_EVERY: ${KAFKAF_AUTOPILOT_IDENTITY_REFRESH_EVERY:-3}
       AUTOPILOT_DYNAMIC_CURRICULUM: ${KAFKAF_AUTOPILOT_DYNAMIC_CURRICULUM:-}
       # On the shared /data volume — persists across restarts (a stop stays
       # stopped until explicitly resumed) and is reachable via `docker
@@ -60,5 +61,6 @@ services:
         --interval-seconds "$$AUTOPILOT_INTERVAL_SECONDS"
         --train-every "$$AUTOPILOT_TRAIN_EVERY"
         --train-steps "$$AUTOPILOT_TRAIN_STEPS"
+        --identity-refresh-every "$$AUTOPILOT_IDENTITY_REFRESH_EVERY"
         --stop-file "$$AUTOPILOT_STOP_FILE"
         $${AUTOPILOT_DYNAMIC_CURRICULUM:+--dynamic-curriculum}
