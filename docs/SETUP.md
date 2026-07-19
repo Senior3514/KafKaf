@@ -434,7 +434,7 @@ more. Turn it on:
 - CLI: `kafkaf chat --skills "..."` or `kafkaf repl --skills`.
 - API: `POST /chat` with `{"skills": true, ...}`.
 
-The twenty-one skills that ship today, all working with no API key
+The twenty-two skills that ship today, all working with no API key
 required (`browser_render` additionally needs the optional `browser`
 extra — see below the table):
 
@@ -455,6 +455,7 @@ extra — see below the table):
 | `system_info` | Read-only snapshot of the machine KafKaf itself runs on (OS, Python, CPU, disk) |
 | `journal` | A private, timestamped notes log confined to the sandboxed workspace |
 | `identity` | KafKaf's persistent self-description file — who it is, what it's learned about itself |
+| `schedule` | Schedule another (already-existing) skill to run once at a future time — e.g. `add in 1h weather: Tel Aviv`. Autopilot runs anything due, gated by autonomy |
 | `own_model_status` | How much the own model has learned so far — corpus size and last training run |
 | `password_generator` | A cryptographically secure random password (Python's `secrets`, never a weak PRNG) |
 | `text_diff` | Line-by-line differences between two pieces of text |

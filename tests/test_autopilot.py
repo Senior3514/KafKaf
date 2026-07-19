@@ -217,6 +217,58 @@ def test_run_forever_identity_refresh_disabled_when_zero(monkeypatch):
     assert "autopilot_identity_refresh" not in event_types
 
 
+def test_run_forever_runs_due_scheduled_tasks(monkeypatch):
+    monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", lambda spec: FakeTeacher())
+    monkeypatch.setattr("kafkaf.core.config.settings.autonomy_level", "autonomous")
+
+    # A task that's already due (run_at in the past) should fire on the
+    # very first cycle.
+    from kafkaf.core.skills import store as skills_store
+
+    skills_store.init_db()
+    skills_store.add_schedule("calculator", "6*7", "2020-01-01T00:00:00+00:00")
+
+    autopilot.run_forever(
+        teachers=["fake:whatever"],
+        topics_path=None,
+        interval_seconds=0,
+        train_every=0,
+        train_steps=10,
+        max_cycles=1,
+    )
+
+    events = audit_store.recent_events(limit=100)
+    run_events = [e for e in events if e["event_type"] == "autopilot_scheduled_run"]
+    assert len(run_events) == 1
+    assert "42" in run_events[0]["summary"]
+    # And it's marked done, not left to fire again.
+    assert skills_store.list_schedules() == []
+
+
+def test_run_forever_does_not_run_schedules_at_observe_level(monkeypatch):
+    monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", lambda spec: FakeTeacher())
+    monkeypatch.setattr("kafkaf.core.config.settings.autonomy_level", "observe")
+
+    from kafkaf.core.skills import store as skills_store
+
+    skills_store.init_db()
+    skills_store.add_schedule("calculator", "6*7", "2020-01-01T00:00:00+00:00")
+
+    autopilot.run_forever(
+        teachers=["fake:whatever"],
+        topics_path=None,
+        interval_seconds=0,
+        train_every=0,
+        train_steps=10,
+        max_cycles=1,
+    )
+
+    event_types = {e["event_type"] for e in audit_store.recent_events(limit=100)}
+    assert "autopilot_scheduled_run" not in event_types
+    # The task is untouched, still pending for when autonomy allows it.
+    assert len(skills_store.list_schedules()) == 1
+
+
 def test_run_forever_logs_stop_event(monkeypatch, tmp_path):
     monkeypatch.setattr("kafkaf.core.enrichment.autopilot.get_brain", lambda spec: FakeTeacher())
     stop_file = str(tmp_path / "autopilot.stop")

@@ -923,6 +923,39 @@ depends on a big-bang release — "grow it over time."
       thoughts / self that develops on its own over time" — a real file it
       genuinely maintains about itself, unattended, within the sandbox.
 
+- [x] **Phase 33 — Scheduled skill triggers, the fourth and last of the
+      safe increments**: `schedule` (twenty-second skill) lets a user or
+      the model defer a *specific, already-existing* skill call to a
+      future time — `add in 1h weather: Tel Aviv`, `add 2026-06-15T09:00
+      journal: daily note`, plus `list` and `cancel <id>`. It can only
+      trigger a skill that's already in the registry (validated at
+      creation), with a string argument — never arbitrary code, never a
+      new capability, just deferred execution of the same fixed,
+      hand-written skill set. New `schedules` table
+      (`core/skills/store.py`, ISO-8601 UTC `run_at` that sorts and
+      compares as a plain string, no timezone-math in SQL), a
+      `run_due_schedules(now)` dispatcher in the registry, and a hook in
+      the autopilot loop that runs anything due each cycle — gated by the
+      exact same `autonomy.skills_allowed()` check as every other skill,
+      so at `observe` level nothing fires and the tasks simply wait. A
+      scheduled skill that errors is recorded and marked done rather than
+      left to retry forever. Parsing note worth keeping: the
+      `<when> <skill>: <arg>` split can't naively cut on the first colon,
+      because an absolute ISO timestamp (`09:00:00`) has colons too — it
+      finds the colon immediately after a registered-skill-name word
+      instead. Tests cover relative and absolute times, unknown/‌self
+      -referential skill rejection, the ISO-colon parsing case, due-vs-
+      future selection, no-double-run, and both the autonomy-gated
+      autopilot execution and its `observe`-level suppression.
+
+      This completes all four safe increments the user chose to sequence
+      after the final "build Hermes Agent" assessment (phase 30): full GUI
+      redesign (phase 30), read-only browser rendering (31), self-
+      maintaining identity (32), and scheduled skill triggers (33) — real
+      capability growth toward the same ambition, every piece inside the
+      autonomy dial and the sandbox, none of it unattended arbitrary code
+      execution.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

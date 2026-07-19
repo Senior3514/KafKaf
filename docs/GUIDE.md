@@ -140,10 +140,11 @@ snapshot of the machine KafKaf itself runs on, a private timestamped
 journal, a persistent self-description file it can read and update about
 itself, a report on how much the own model has actually learned so far,
 a secure password generator, a text-diff tool, text hashing, random
-picks/dice rolls, text stats, and (with the optional `browser` extra) a
-locked-down, read-only headless browser for rendering JS-heavy pages
-plain `web_fetch` can't — twenty-one skills, all working with no
-API key required. This is the
+picks/dice rolls, text stats, scheduling another skill to run at a future
+time (`schedule` — autopilot runs anything due, gated by autonomy), and
+(with the optional `browser` extra) a locked-down, read-only headless
+browser for rendering JS-heavy pages plain `web_fetch` can't — twenty-two
+skills, all working with no API key required. This is the
 ReAct pattern (ask a model to act, not just answer), and it works the same
 way regardless of which brain is answering. Combines with council mode too
 — turn both on and every council brain gets independent tool access before
