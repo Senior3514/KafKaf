@@ -5,10 +5,17 @@
   --muted: #6b6b6b;
   --border: #e2e2e5;
   --accent: #2f6fed;
+  /* Secondary hue for gradient accents (brand wordmark, send button, active
+     states, user bubbles) — one extra color turns a flat, single-tone UI
+     into something with real visual depth. */
+  --accent-2: #7c5cff;
   --bubble-user: #2f6fed;
   --bubble-user-text: #ffffff;
   --bubble-assistant: #ffffff;
   --error: #b3261e;
+  --shadow-sm: 0 1px 3px rgba(15, 15, 20, 0.07), 0 1px 1px rgba(15, 15, 20, 0.05);
+  --shadow-md: 0 10px 28px rgba(15, 15, 20, 0.09), 0 2px 8px rgba(15, 15, 20, 0.06);
+  --shadow-lg: 0 20px 48px rgba(15, 15, 20, 0.14), 0 6px 16px rgba(15, 15, 20, 0.08);
 
   /* Design tokens — one spacing/radius scale reused everywhere, instead of
      one-off px values per component. Doesn't vary per theme. */
@@ -32,10 +39,14 @@
     --muted: #9a9a9f;
     --border: #2c2c30;
     --accent: #5b8dfb;
+    --accent-2: #a78bfa;
     --bubble-user: #5b8dfb;
     --bubble-user-text: #0b0b0c;
     --bubble-assistant: #1c1c1f;
     --error: #ff6b60;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -49,10 +60,14 @@
   --muted: #9a9a9f;
   --border: #2c2c30;
   --accent: #5b8dfb;
+  --accent-2: #a78bfa;
   --bubble-user: #5b8dfb;
   --bubble-user-text: #0b0b0c;
   --bubble-assistant: #1c1c1f;
   --error: #ff6b60;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
 }
 
 :root[data-theme="light"] {
@@ -62,10 +77,14 @@
   --muted: #6b6b6b;
   --border: #e2e2e5;
   --accent: #2f6fed;
+  --accent-2: #7c5cff;
   --bubble-user: #2f6fed;
   --bubble-user-text: #ffffff;
   --bubble-assistant: #ffffff;
   --error: #b3261e;
+  --shadow-sm: 0 1px 3px rgba(15, 15, 20, 0.07), 0 1px 1px rgba(15, 15, 20, 0.05);
+  --shadow-md: 0 10px 28px rgba(15, 15, 20, 0.09), 0 2px 8px rgba(15, 15, 20, 0.06);
+  --shadow-lg: 0 20px 48px rgba(15, 15, 20, 0.14), 0 6px 16px rgba(15, 15, 20, 0.08);
 }
 
 /* A real, distinct color theme — warm sunset tones, not a light/dark
@@ -78,10 +97,14 @@
   --muted: #d19a7a;
   --border: #5a3548;
   --accent: #ff7e5f;
+  --accent-2: #ffb347;
   --bubble-user: #ff7e5f;
   --bubble-user-text: #2d1b2e;
   --bubble-assistant: #3d2438;
   --error: #ff6b6b;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
 }
 
 .visually-hidden {
@@ -108,7 +131,15 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background-color: var(--bg);
+  /* A soft glow anchored top-start instead of one flat color — gives every
+     theme a sense of depth without needing any image asset. */
+  background-image: radial-gradient(
+    circle at 15% -10%,
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    transparent 45%
+  );
+  background-attachment: fixed;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
@@ -118,10 +149,40 @@ body {
   background-attachment: fixed;
 }
 
+/* Thin, theme-matched scrollbars instead of the OS default — a small
+   detail that shows up everywhere the chat/control panel scroll. */
+.chat,
+.control-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.chat::-webkit-scrollbar,
+.control-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat::-webkit-scrollbar-thumb,
+.control-panel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+.chat::-webkit-scrollbar-track,
+.control-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .topbar {
   padding: max(var(--space-3), env(safe-area-inset-top)) var(--space-4) var(--space-3);
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  /* Slightly translucent + blurred instead of a flat surface color, so
+     content scrolling underneath reads as "behind glass" rather than the
+     header looking like a plain, separate bar. */
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -145,9 +206,28 @@ body {
 }
 
 .brand-name {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Fallback for engines without background-clip: text; the @supports
+     block below upgrades it to a gradient wordmark where supported
+     (every modern Chromium/WebView2/Safari — effectively everywhere this
+     app runs). */
+  color: var(--accent);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .brand-name {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.logo {
+  filter: drop-shadow(0 2px 5px color-mix(in srgb, var(--accent) 45%, transparent));
 }
 
 .logo-sole {
@@ -200,6 +280,7 @@ body {
 
 .brain-select:hover {
   border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .brain-select:focus-visible,
@@ -242,6 +323,7 @@ body {
 
 .icon-btn:hover {
   border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .icon-btn:focus-visible {
@@ -312,14 +394,14 @@ body {
 
 .bubble.user {
   align-self: flex-end;
-  background: var(--bubble-user);
+  background: linear-gradient(135deg, var(--bubble-user), var(--accent-2));
   color: var(--bubble-user-text);
   /* Logical (not physical left/right) so the "tail" corner stays on this
      bubble's own outer edge in both RTL (Hebrew) and LTR (English) —
      border-bottom-left-radius would flatten the wrong corner once dir
      flips. */
   border-end-end-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .bubble.assistant {
@@ -327,6 +409,7 @@ body {
   background: var(--bubble-assistant);
   border: 1px solid var(--border);
   border-end-start-radius: 4px;
+  box-shadow: var(--shadow-sm);
 }
 
 .bubble.error {
@@ -372,22 +455,38 @@ body {
 
 .welcome-card {
   align-self: center;
-  max-width: 360px;
+  max-width: 420px;
   margin: auto;
   text-align: center;
-  padding: 24px 20px;
+  padding: var(--space-6) var(--space-5);
   color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.welcome-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto var(--space-3);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
 .welcome-card h2 {
   color: var(--text);
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 800;
   margin: 0 0 10px;
 }
 
 .welcome-card p {
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.92rem;
+  line-height: 1.55;
   margin: 0;
 }
 
@@ -396,7 +495,10 @@ body {
   justify-content: center;
   padding: var(--space-3) var(--space-4) max(var(--space-3), env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 -2px 12px rgba(15, 15, 20, 0.04);
 }
 
 .composer-inner {
@@ -431,17 +533,18 @@ body {
   border-radius: 50%;
   width: 44px;
   height: 44px;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
   font-size: 1.1rem;
   cursor: pointer;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .send-btn:hover:not(:disabled) {
   transform: scale(1.06);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .send-btn:active:not(:disabled) {
@@ -457,6 +560,8 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -477,7 +582,7 @@ body {
   border-radius: 16px 16px 0 0;
   padding: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
   animation: panel-rise 0.22s ease-out;
 }
 
@@ -541,8 +646,9 @@ body {
 
 .autonomy-btn.active {
   border-color: var(--accent);
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
+  box-shadow: var(--shadow-sm);
 }
 
 .autonomy-btn:disabled {

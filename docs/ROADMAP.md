@@ -1069,6 +1069,33 @@ depends on a big-bang release — "grow it over time."
       900px-tall viewport (712px of dead space below the bubble before,
       ~190px — ordinary padding — after) plus screenshots of both states.
 
+- [x] **Phase 37 — Real visual depth pass**: direct user feedback after
+      seeing the actual current GUI live: functional but visually flat next
+      to competitor products — "looks like a 3-year-old made it." Addressed
+      with real visual design work, not just copy changes, kept entirely
+      self-hosted (no external fonts/CDNs, matching the privacy-first
+      design — everything is CSS/inline SVG):
+      - A second accent color (`--accent-2`) per theme, used as a gradient
+        partner to the existing accent — the brand wordmark, the send
+        button, the user's own message bubbles, and active
+        autonomy/write-skills buttons all pick up a real two-tone gradient
+        instead of one flat color.
+      - Real elevation: new `--shadow-sm/md/lg` tokens (theme-aware — soft
+        grey shadows in light mode, deeper black ones in dark/sunset) applied
+        to buttons, selects on hover, message bubbles, the welcome card, and
+        the control panel, replacing mostly-flat 1px borders.
+      - A glass-effect header and composer (`backdrop-filter: blur` + a
+        translucent surface color) instead of solid bars, plus a subtle
+        radial glow behind the whole page (`radial-gradient` keyed off the
+        theme's own accent color via `color-mix`) so light and dark themes
+        get the same sense of depth the sunset theme already had.
+      - The empty-state welcome card got a gradient icon, a real card
+        shadow, and bigger type instead of being plain centered text.
+      - Themed, thin scrollbars instead of the OS default.
+      Verified live in all three themes (light/dark/sunset) with real
+      Chromium screenshots of both the empty-state welcome screen and an
+      active conversation.
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not
