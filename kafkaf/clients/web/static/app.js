@@ -198,6 +198,103 @@ inputEl.addEventListener("keydown", (event) => {
   }
 });
 
+async function plainChat(message, typingBubble) {
+  const response = await fetch("/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      persona: personaSelectEl.value,
+      brain: councilToggleEl.checked ? null : brainSelectEl.value || null,
+      council: councilToggleEl.checked,
+      skills: skillsToggleEl.checked,
+    }),
+  });
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    // The backend always returns JSON, success or failure (see
+    // core/api.py) — a response that isn't valid JSON means something
+    // below the app itself failed (a proxy, the server process dying
+    // mid-request, ...), not a normal error path.
+    throw new Error(`Backend returned ${response.status} with a non-JSON body`);
+  }
+  if (!response.ok) {
+    throw new Error(data.detail || `Backend returned ${response.status}`);
+  }
+  typingBubble.remove();
+  renderChatOutcome(data);
+}
+
+// Real token-by-token streaming, only for the plain single-brain path
+// (no council, no skills -- see /chat/stream's docstring for why those
+// two structurally can't stream). NDJSON over a plain fetch +
+// ReadableStream: one JSON object per line, {"delta": "..."} chunks,
+// a final {"done": true, ...} on success or {"error": "..."} if the
+// brain call fails mid-stream (the only way a failure can surface once
+// the 200 status is already committed).
+async function streamChat(message, typingBubble) {
+  const response = await fetch("/chat/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      persona: personaSelectEl.value,
+      brain: brainSelectEl.value || null,
+    }),
+  });
+
+  if (!response.ok) {
+    // A pre-stream-start failure (bad brain spec, validation) -- still
+    // plain JSON here, same contract as /chat.
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Backend returned ${response.status} with a non-JSON body`);
+    }
+    throw new Error(data.detail || `Backend returned ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let started = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newlineIndex;
+    while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event.delta !== undefined) {
+        if (!started) {
+          typingBubble.classList.remove("typing");
+          typingBubble.innerHTML = "";
+          started = true;
+        }
+        typingBubble.textContent += event.delta;
+        chatEl.scrollTop = chatEl.scrollHeight;
+      } else if (event.error) {
+        // The caller's catch block removes typingBubble unconditionally
+        // (same pattern as every other chat error path), so any text
+        // already streamed in is discarded along with it -- consistent
+        // with the backend only saving complete turns to history.
+        throw new Error(event.error);
+      }
+      // event.done: nothing further to do, the bubble already holds the
+      // full text.
+    }
+  }
+}
+
 formEl.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = inputEl.value.trim();
@@ -208,35 +305,14 @@ formEl.addEventListener("submit", async (event) => {
   inputEl.style.height = "auto";
   sendBtn.disabled = true;
   const typingBubble = addTypingIndicator();
+  const useStreaming = !councilToggleEl.checked && !skillsToggleEl.checked;
 
   try {
-    const response = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        session_id: sessionId,
-        persona: personaSelectEl.value,
-        brain: councilToggleEl.checked ? null : brainSelectEl.value || null,
-        council: councilToggleEl.checked,
-        skills: skillsToggleEl.checked,
-      }),
-    });
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      // The backend always returns JSON, success or failure (see
-      // core/api.py) — a response that isn't valid JSON means something
-      // below the app itself failed (a proxy, the server process dying
-      // mid-request, ...), not a normal error path.
-      throw new Error(`Backend returned ${response.status} with a non-JSON body`);
+    if (useStreaming) {
+      await streamChat(message, typingBubble);
+    } else {
+      await plainChat(message, typingBubble);
     }
-    if (!response.ok) {
-      throw new Error(data.detail || `Backend returned ${response.status}`);
-    }
-    typingBubble.remove();
-    renderChatOutcome(data);
   } catch (err) {
     typingBubble.remove();
     addBubble("error", `${t("error_prefix")}: ${err.message}`);

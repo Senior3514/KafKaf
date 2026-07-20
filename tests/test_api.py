@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -719,3 +721,70 @@ def test_status_endpoint_reports_pending_approval_count(monkeypatch, fake_gated_
 
         after = client.get("/status").json()
     assert after["pending_approvals"]["count"] == 1
+
+
+def _read_ndjson(response):
+    events = []
+    for line in response.iter_lines():
+        if line.strip():
+            events.append(json.loads(line))
+    return events
+
+
+def test_chat_stream_happy_path():
+    with TestClient(app) as client:
+        with client.stream(
+            "POST", "/chat/stream", json={"message": "hi", "session_id": "s-stream"}
+        ) as response:
+            assert response.status_code == 200
+            events = _read_ndjson(response)
+
+    deltas = "".join(e["delta"] for e in events if "delta" in e)
+    assert deltas == "pong"
+    assert events[-1] == {"done": True, "session_id": "s-stream"}
+
+    history = council.store.get_history("s-stream")
+    assert [m["content"] for m in history] == ["hi", "pong"]
+
+
+def test_chat_stream_error_mid_stream_yields_error_line_no_history(monkeypatch):
+    class BrokenStreamBrain(Brain):
+        name = "broken-stream"
+
+        async def generate(self, messages: list[dict[str, str]]) -> str:
+            return "unused"
+
+        async def generate_stream(self, messages: list[dict[str, str]]):
+            yield "partial "
+            raise RuntimeError("stream broke")
+
+    monkeypatch.setattr(council, "_default_brain", BrokenStreamBrain())
+
+    with TestClient(app) as client:
+        with client.stream(
+            "POST", "/chat/stream", json={"message": "hi", "session_id": "s-broken"}
+        ) as response:
+            assert response.status_code == 200
+            events = _read_ndjson(response)
+
+    assert not any("done" in e for e in events)
+    assert events[-1]["error"]
+    assert council.store.get_history("s-broken") == []
+
+
+def test_chat_stream_rejects_unknown_fields():
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat/stream",
+            json={"message": "hi", "session_id": "s1", "council": True},
+        )
+    assert response.status_code == 422
+
+
+def test_chat_stream_bad_brain_spec_fails_before_streaming():
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat/stream", json={"message": "hi", "session_id": "s1", "brain": "no-colon-here"}
+        )
+    assert response.status_code == 400
+    assert "detail" in response.json()

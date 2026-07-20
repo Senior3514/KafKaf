@@ -1,4 +1,5 @@
 from kafkaf.core.personas.default import DEFAULT_PERSONA, PERSONAS, get_persona
+from kafkaf.core.personas.style import VOICE_STYLE
 
 
 def test_default_persona_is_kaf():
@@ -23,3 +24,8 @@ def test_every_persona_has_a_nonempty_system_prompt():
     for persona in PERSONAS.values():
         assert persona.system_prompt.strip()
         assert persona.name.strip()
+
+
+def test_every_persona_includes_shared_voice_style_exactly_once():
+    for persona in PERSONAS.values():
+        assert persona.system_prompt.count(VOICE_STYLE) == 1
