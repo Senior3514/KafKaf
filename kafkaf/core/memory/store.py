@@ -32,7 +32,9 @@ def save_message(session_id: str, role: str, content: str) -> None:
         )
 
 
-def get_history(session_id: str, limit: int = 20) -> list[dict[str, str]]:
+def get_history(session_id: str, limit: int | None = None) -> list[dict[str, str]]:
+    if limit is None:
+        limit = settings.history_window
     with _connect() as conn:
         rows = conn.execute(
             "SELECT role, content FROM messages WHERE session_id = ? "

@@ -96,7 +96,13 @@ is instructed, never which brain answers. `get_persona(key)` falls back to
 `default` for an unknown key rather than erroring. Three ship today
 (`default`/`researcher`/`coach` — see `docs/SETUP.md#personas-different-tone-same-brain`);
 adding one is a new file plus a `PERSONAS` dict entry, nothing else in the
-system needs to change.
+system needs to change. Every persona's `system_prompt` ends with the same
+`VOICE_STYLE` constant (`core/personas/style.py`) — plain text telling the
+model to skip generic AI-assistant boilerplate. It's brain-agnostic by
+construction (system-prompt text applies identically regardless of which
+of the five brains generates the reply) and lives in one place on purpose,
+so a future voice change happens once instead of drifting across the three
+persona files independently.
 
 ## Council / multi-brain pattern
 
@@ -116,6 +122,33 @@ Configured via `KAFKAF_COUNCIL_BRAINS` (comma-separated specs, e.g.
 web GUI's council toggle (which disables the brain dropdown — council mode
 picks its own brains from config, not a single override). Combines with
 skills mode — see below.
+
+`_build_messages(persona_key, session_id, message)` is the one place a
+plain chat turn's messages get assembled (persona system prompt + history
++ the new user turn), used by both `handle_chat` and `stream_chat` so
+history/persona assembly can never drift between the two. It also
+auto-injects up to 3 relevant taught facts from the enrichment corpus into
+the system prompt on every plain turn (not just skills mode) — see
+"Deeper context" in `docs/SETUP.md`.
+
+## Streaming
+
+`Brain.generate_stream(messages)` (`core/brains/base.py`) is a concrete,
+overridable async-generator method with a safe default: yields the
+complete `generate()` reply as one chunk. Only `OllamaBrain` overrides it
+with real per-token streaming today (flips Ollama's own `"stream": true`
+flag and parses each NDJSON response line). `council.stream_chat()` is the
+streaming counterpart to `handle_chat`'s plain path only — it uses the
+same `_build_messages` helper, accumulates chunks as it yields them, and
+only saves history/audit once the generator is fully consumed (an error or
+early disconnect mid-stream saves nothing, same "only complete exchanges
+get saved" rule the approval-gated skills work established). `POST
+/chat/stream` (`core/api.py`) wraps it in a `StreamingResponse`, one JSON
+object per line (`{"delta": ...}`, then `{"done": true, ...}` or
+`{"error": ...}`) — NDJSON over a plain POST, not SSE/`EventSource` (which
+can't send a JSON request body). Deliberately does not accept
+`council`/`skills` — see "Skills (tool use)" below for why neither can
+stream to the user without deeper redesign.
 
 ## Skills (tool use)
 
@@ -183,12 +216,22 @@ automation (mouse/keyboard control over the whole screen) — only
 sandboxed browser automation exists. See `docs/ROADMAP.md` phase 38 for
 the full design and reasoning.
 
+Skills mode can't stream to the user (see "Streaming" above): `loop.py`'s
+`_ACTION_RE`/`_FINAL_RE` both need the complete reply text to decide
+whether to run a tool, keep looping, or return a final answer — that
+classification is impossible from a partial stream prefix. `/chat/stream`
+doesn't accept `skills: true` at all; the web GUI always falls back to the
+non-streaming `/chat` endpoint when the Skills toggle is on.
+
 ## Memory
 
 `core/memory/store.py` is a small SQLite-backed conversation log, keyed by
-`session_id`. It's intentionally simple for phase 2; a vector-store-backed
-long-term memory is a natural phase-3+ upgrade once retrieval-augmented
-recall is needed.
+`session_id`. `get_history(session_id, limit=None)` returns the last
+`Settings.history_window` rows (default 60 = 30 turn-pairs, up from an
+earlier hardcoded 20) when `limit` isn't given explicitly — a hard cutoff,
+not summarization; a vector-store-backed long-term memory or real
+compaction is a natural future upgrade once retrieval-augmented recall is
+needed.
 
 ## Our own model + enrichment
 

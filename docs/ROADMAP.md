@@ -1188,6 +1188,80 @@ depends on a big-bang release — "grow it over time."
       rendering correctly (screenshotted), Approve actually executing the
       skill and completing the turn.
 
+- [x] **Phase 39 — Streaming replies, deeper context, and a real voice**:
+      direct feedback after the approval-gated engine shipped: KafKaf
+      "feels slow/dead" (a full reply arrives all at once after a wait),
+      "forgets things" (shallow context), and "sounds generic" (boilerplate
+      persona prompts). Also asked, explicitly, that the "sound less
+      generic" fix be permanent, brain-agnostic product DNA, not a
+      one-off prompt trick. Three honestly-scoped fixes:
+      - **Streaming**: `Brain.generate_stream()`, a concrete method with a
+        safe default (yields the complete `generate()` reply as one
+        chunk). Only `OllamaBrain` overrides it with real per-token
+        streaming — extending OpenAI/Anthropic/Gemini/the own model is
+        real, meaningfully different future work per provider (SSE
+        parsing with different schemas, a different endpoint for Gemini,
+        a generation-loop rewrite for the own model's byte-level
+        tokenizer), stated honestly, not hidden. New `POST /chat/stream`
+        (NDJSON over a plain POST + `fetch`/`ReadableStream`, not
+        SSE/`EventSource` — which can't send a JSON body) reaches only
+        the plain single-brain path; Council and Skills both keep using
+        the original `/chat` endpoint unchanged, because neither can
+        stream to the user without deep redesign — the ReAct loop needs
+        the complete reply text to decide whether to run a tool, and
+        council mode needs every fanned-out brain's complete answer
+        before it can synthesize one. A mid-stream failure can't become
+        an HTTP error status once the 200 is already committed, so it's
+        signaled as a final `{"error": ...}` NDJSON line instead —
+        documented as load-bearing, not a nicety.
+      - **Deeper context**: the chat history window was a hardcoded 20
+        rows (10 turn-pairs) with zero summarization — raised to a
+        configurable `KAFKAF_HISTORY_WINDOW` (default 60 = 30
+        turn-pairs), still an honest hard cutoff, not real compaction.
+        Separately, taught facts from the enrichment corpus are now
+        auto-recalled on *every* plain chat turn via a new shared
+        `council._build_messages()` helper (used by both `handle_chat`
+        and `stream_chat`, so this can't drift between entry points) —
+        previously only reachable if the model itself chose to call the
+        `memory_search` skill in skills mode. `search_examples` matches
+        by substring containment, so a full raw sentence essentially
+        never matches a short stored fact verbatim — fixed with a
+        fallback to individual significant words from the message when
+        the full-message query finds nothing, capped and deduplicated at
+        3 facts per turn.
+      - **A real voice, not generic**: new `core/personas/style.py`
+        exports one `VOICE_STYLE` constant — plain system-prompt text
+        instructing the model to skip AI-assistant boilerplate (no "as an
+        AI language model," no reflexive apologizing, no restating the
+        question, no "I hope this helps!" sign-offs) — appended to all
+        three personas' prompts, which were also rewritten to be more
+        specific and distinctive (Kaf leans into being private/
+        self-hosted honestly, without overselling a small local model's
+        capability; Researcher flags confidence per claim instead of a
+        flat authoritative tone; Coach references the actual thing being
+        worked on instead of a stock motivational close). One shared
+        constant, not copy-pasted per file, is the literal "DNA"
+        placement requested — brain-agnostic since it's plain text in a
+        system prompt, identical regardless of which of the five brains
+        generates the reply.
+      Verified: `OllamaBrain.generate_stream` against a mocked transport
+      (ordered chunks, ignores the `done` line, raises cleanly on an
+      HTTP error) and the default fallback for a plain `Brain` subclass;
+      `_build_messages` taught-facts injection (present on a match,
+      including the word-fallback case, absent on no match) and that
+      `handle_chat`/`stream_chat` call it identically; `stream_chat`
+      happy path and mid-stream-failure-saves-no-history; `/chat/stream`
+      end-to-end (deltas concatenate correctly, clean `done` line, a
+      mid-stream error's `{"error": ...}` line with no history saved,
+      unknown fields rejected with 422, a bad brain spec failing before
+      any streaming starts); every persona contains `VOICE_STYLE` exactly
+      once; `history_window`'s default and env override; and a live
+      Playwright run against a real server — a mid-stream screenshot
+      showing genuinely partial text ("This is ") captured while more was
+      still arriving, confirming real progressive rendering, not an
+      instant full-text dump — plus confirmation that Skills-mode turns
+      are visually unaffected (still typing dots, then one full bubble).
+
 ## Deferred / future work
 
 Surfaced by the phase 8 competitive research pass but deliberately not

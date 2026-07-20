@@ -460,17 +460,59 @@ risk, not a feature. Switching a teacher to `openai:`/`anthropic:`/
 that before turning the interval down or adding several paid teachers to
 the rotation.
 
+## Streaming replies
+
+The web GUI's plain chat (Council and Skills both off) streams token-by-
+token instead of waiting for the whole reply — `POST /chat/stream`, an
+NDJSON response the frontend reads incrementally. Real streaming exists
+today for **Ollama only** (`OllamaBrain.generate_stream`); every other
+brain (OpenAI, Anthropic, Gemini, the own model) still generates its full
+reply and returns it as a single chunk — a real, deliberate scope line,
+not a bug: each of those needs meaningfully different work to stream for
+real (SSE parsing with a different schema per API, a different endpoint
+for Gemini, a generation-loop rewrite for the own model's byte-level
+tokenizer). Turning on Council or Skills always uses the original,
+non-streaming `/chat` endpoint — the ReAct tool-use loop needs the
+complete reply text to decide whether to run a tool or give a final
+answer, and council mode needs every fanned-out brain's complete answer
+before it can synthesize one — neither can stream to the user without
+deeper redesign.
+
+## Deeper context: history window + auto-recalled taught facts
+
+Two changes address "it forgets things":
+
+- **History window** raised from a hardcoded 20 rows (10 turn-pairs) to
+  `KAFKAF_HISTORY_WINDOW` (default `60` = 30 turn-pairs). Still a hard
+  cutoff, not summarization — turn 31 of a very long conversation still
+  falls out of view. Real compaction/summarization is separate future
+  work.
+- **Taught facts are now auto-recalled on every plain chat turn**, not
+  only when the model itself chooses to call the `memory_search` skill.
+  Each message is matched against the enrichment corpus (the same
+  `teach_fact`/`distill_from_teacher` data used to train the own model)
+  by keyword, and up to 3 relevant hits are quietly added to the system
+  prompt when there's a match — no skills mode required. Keyword
+  substring matching, not embeddings, so recall is honest-but-imperfect,
+  consistent with the rest of this project's minimal-dependency
+  philosophy.
+
 ## Personas: different tone, same brain
 
 A persona is just a system prompt + a name (`kafkaf/core/personas/`) —
 picking one doesn't change which model answers, only how it's instructed
-to. Three ship today:
+to. Three ship today, each ending in a shared, brain-agnostic
+`VOICE_STYLE` block (`kafkaf/core/personas/style.py`) that tells the
+model to skip generic AI-assistant boilerplate — no "as an AI language
+model", no reflexive apologizing, no restating the question, no "I hope
+this helps!" sign-offs — plain text in the system prompt, so it applies
+identically no matter which of the five brains is actually generating:
 
 | Persona | Key | Style |
 |---|---|---|
-| Kaf | `default` | Helpful, direct, honest about its own limits. |
-| Researcher | `researcher` | Precise/technical, distinguishes fact from inference, cites specifics. |
-| Coach | `coach` | Concise, ends with a clear next step, genuine (not generic) encouragement. |
+| Kaf | `default` | Helpful, direct, honest about its own limits — and honest that it's a private, self-hosted assistant, not a cloud service pretending to match a larger hosted model's raw capability. |
+| Researcher | `researcher` | Precise/technical, distinguishes fact from inference, flags confidence per claim instead of a flat authoritative tone. |
+| Coach | `coach` | Concise, ends with a next step naming the actual thing you're working on — never a stock motivational line. |
 
 Pick one:
 - Web GUI: the persona dropdown next to the model dropdown.
@@ -604,6 +646,7 @@ All settings are environment variables prefixed `KAFKAF_` (see
 | `KAFKAF_COUNCIL_BRAINS`      | unset                      | Comma-separated brains for council mode |
 | `KAFKAF_SKILLS_WORKSPACE_DIR` | `workspace`               | Sandboxed directory for the `files`/`document_search` skills |
 | `KAFKAF_RUN_CODE_TIMEOUT_SECONDS` | `10`                  | Hard wall-clock timeout for the `run_code` skill's sandboxed subprocess |
+| `KAFKAF_HISTORY_WINDOW`      | `60`                       | Rows of chat history (2 per turn) included on every `/chat`/`/chat/stream` call — see [Deeper context](#deeper-context-history-window--auto-recalled-taught-facts) |
 | `KAFKAF_RATE_LIMIT_PER_MINUTE` | `120`                    | Requests/minute per client IP before `429` (`0` disables) |
 | `KAFKAF_OLLAMA_MEM_LIMIT`    | `8g`                        | Container memory cap for Ollama — raise if using the `qwen3:14b` tier |
 | `KAFKAF_BACKEND_MEM_LIMIT`   | `2g`                        | Container memory cap for the backend    |

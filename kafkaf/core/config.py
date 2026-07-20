@@ -54,5 +54,13 @@ class Settings(BaseSettings):
     # disables rate limiting entirely.
     rate_limit_per_minute: int = 120
 
+    # Rows of chat history (2 per turn: user+assistant) included on every
+    # /chat and /chat/stream call. A hard cutoff, not summarization/
+    # compaction -- real compaction is separate future work. Raised from
+    # the old hardcoded 20 (10 turn-pairs) after live feedback that the
+    # model "forgets things" -- 60 = 30 turn-pairs is still small relative
+    # to typical model context windows but meaningfully deeper.
+    history_window: int = 60
+
 
 settings = Settings()

@@ -124,9 +124,12 @@ async def test_council_chat_without_skills_does_not_run_tools(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_handle_chat_council_mode(monkeypatch, tmp_path):
+    from kafkaf.core.enrichment import store as enrichment_store
+
     monkeypatch.setattr("kafkaf.core.config.settings.db_path", str(tmp_path / "test.db"))
     memory_store.init_db()
     audit_store.init_db()
+    enrichment_store.init_db()
 
     brains = {"a:1": FixedBrain("brain-a", "answer A"), "a:2": FixedBrain("brain-b", "answer B")}
     monkeypatch.setattr(council, "get_brain", lambda spec: brains[spec])
@@ -139,3 +142,107 @@ async def test_handle_chat_council_mode(monkeypatch, tmp_path):
 
     history = memory_store.get_history("s1")
     assert [m["content"] for m in history] == ["hello", outcome.reply]
+
+
+class StreamingBrain(Brain):
+    """A brain whose generate_stream yields real chunks, for testing
+    council.stream_chat independently of OllamaBrain."""
+
+    def __init__(self, name: str, chunks: list[str], fail_after: int | None = None):
+        self.name = name
+        self._chunks = chunks
+        self._fail_after = fail_after
+
+    async def generate(self, messages: list[dict[str, str]]) -> str:
+        return "".join(self._chunks)
+
+    async def generate_stream(self, messages: list[dict[str, str]]):
+        for i, chunk in enumerate(self._chunks):
+            if self._fail_after is not None and i >= self._fail_after:
+                raise RuntimeError("stream broke")
+            yield chunk
+
+
+@pytest.fixture
+def _memory_and_enrichment_db(monkeypatch, tmp_path):
+    from kafkaf.core.enrichment import store as enrichment_store
+
+    monkeypatch.setattr("kafkaf.core.config.settings.db_path", str(tmp_path / "test.db"))
+    memory_store.init_db()
+    audit_store.init_db()
+    enrichment_store.init_db()
+    yield
+
+
+class TestBuildMessagesAndTaughtFacts:
+    def test_no_facts_when_corpus_empty(self, _memory_and_enrichment_db):
+        messages = council._build_messages("default", "s-empty", "tell me about kafkaf")
+        assert "Relevant facts" not in messages[0]["content"]
+
+    def test_injects_fact_matching_full_message(self, _memory_and_enrichment_db):
+        from kafkaf.core.enrichment import service as enrichment_service
+
+        enrichment_service.teach_fact("kafkaf", "kafkaf is a self-hosted AI platform")
+        messages = council._build_messages("default", "s1", "kafkaf")
+        assert "Relevant facts" in messages[0]["content"]
+        assert "self-hosted AI platform" in messages[0]["content"]
+
+    def test_falls_back_to_word_queries_when_full_message_misses(self, _memory_and_enrichment_db):
+        from kafkaf.core.enrichment import service as enrichment_service
+
+        # The full sentence never appears verbatim in the stored fact, but
+        # "workspace" (a significant word in the message) does.
+        enrichment_service.teach_fact("workspace", "the workspace directory is sandboxed")
+        messages = council._build_messages(
+            "default", "s1", "what directory does the workspace use for files?"
+        )
+        assert "Relevant facts" in messages[0]["content"]
+        assert "sandboxed" in messages[0]["content"]
+
+    def test_no_facts_for_unrelated_message(self, _memory_and_enrichment_db):
+        from kafkaf.core.enrichment import service as enrichment_service
+
+        enrichment_service.teach_fact("kafkaf", "kafkaf is a self-hosted AI platform")
+        messages = council._build_messages("default", "s1", "what time is it")
+        assert "Relevant facts" not in messages[0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_handle_chat_and_stream_chat_share_build_messages(_memory_and_enrichment_db, monkeypatch):
+    calls = []
+    original = council._build_messages
+
+    def spy(persona_key, session_id, message):
+        calls.append((persona_key, session_id, message))
+        return original(persona_key, session_id, message)
+
+    monkeypatch.setattr(council, "_build_messages", spy)
+
+    plain_brain = FixedBrain("plain", "a reply")
+    stream_brain = StreamingBrain("stream", ["a ", "reply"])
+
+    await council.handle_chat("s1", "hello there", brain=plain_brain)
+    async for _ in council.stream_chat("s2", "hello there", brain=stream_brain):
+        pass
+
+    assert calls == [("default", "s1", "hello there"), ("default", "s2", "hello there")]
+
+
+@pytest.mark.asyncio
+async def test_stream_chat_happy_path_saves_history(_memory_and_enrichment_db):
+    brain = StreamingBrain("stream", ["Hel", "lo!"])
+    chunks = [chunk async for chunk in council.stream_chat("s-stream", "hi", brain=brain)]
+    assert chunks == ["Hel", "lo!"]
+
+    history = memory_store.get_history("s-stream")
+    assert [m["content"] for m in history] == ["hi", "Hello!"]
+
+
+@pytest.mark.asyncio
+async def test_stream_chat_error_mid_stream_saves_no_history(_memory_and_enrichment_db):
+    brain = StreamingBrain("stream", ["partial ", "never sent"], fail_after=1)
+    with pytest.raises(RuntimeError):
+        async for _ in council.stream_chat("s-fail", "hi", brain=brain):
+            pass
+
+    assert memory_store.get_history("s-fail") == []

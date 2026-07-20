@@ -1,14 +1,17 @@
 import asyncio
+import json
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from kafkaf.core import autonomy, council
 from kafkaf.core.audit import store as audit_store
+from kafkaf.core.brains.base import Brain
 from kafkaf.core.brains.registry import get_brain
 from kafkaf.core.config import settings
 from kafkaf.core.enrichment.autopilot import _default_stop_file, is_stop_requested
@@ -114,6 +117,41 @@ class WorkspaceRequest(BaseModel):
     path: str
 
 
+class ChatStreamRequest(BaseModel):
+    # extra="forbid": a stray council=true/skills=true from a future client
+    # change must fail loudly (422) instead of silently being ignored —
+    # this endpoint only ever supports the plain single-brain path, see
+    # /chat/stream's docstring.
+    model_config = ConfigDict(extra="forbid")
+    message: str
+    session_id: str = "default"
+    persona: str = "default"
+    brain: str | None = None
+
+
+def _resolve_brain(spec: str | None) -> Brain | None:
+    if not spec:
+        return None
+    try:
+        return get_brain(spec)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ModuleNotFoundError as exc:
+        # get_brain("own") lazily imports OwnModelBrain, which imports
+        # torch — an optional [train] extra. On a machine that only
+        # installed the base package (the common case), that import
+        # fails here, before the broad except-Exception fallback below
+        # is even reached — this must not fall through to a raw,
+        # non-JSON 500 (found live: selecting "Our own model" in the
+        # web GUI without [train] installed did exactly that).
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can't use brain {spec!r}: {exc}. If this is "
+            '"own", it needs the optional \'train\' extra: run '
+            'pip install -e ".[train]" (installs torch), then restart the server.',
+        ) from exc
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -128,26 +166,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
             "(needs 'assisted' or 'autonomous' — see docs/SETUP.md#autonomy-levels).",
         )
 
-    brain = None
-    if request.brain:
-        try:
-            brain = get_brain(request.brain)
-        except (ValueError, RuntimeError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except ModuleNotFoundError as exc:
-            # get_brain("own") lazily imports OwnModelBrain, which imports
-            # torch — an optional [train] extra. On a machine that only
-            # installed the base package (the common case), that import
-            # fails here, before the broad except-Exception fallback below
-            # is even reached — this must not fall through to a raw,
-            # non-JSON 500 (found live: selecting "Our own model" in the
-            # web GUI without [train] installed did exactly that).
-            raise HTTPException(
-                status_code=400,
-                detail=f"Can't use brain {request.brain!r}: {exc}. If this is "
-                '"own", it needs the optional \'train\' extra: run '
-                'pip install -e ".[train]" (installs torch), then restart the server.',
-            ) from exc
+    brain = _resolve_brain(request.brain)
 
     council_brains = None
     if request.council:
@@ -187,6 +206,43 @@ async def chat(request: ChatRequest) -> ChatResponse:
         ) from exc
 
     return _chat_response(outcome)
+
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatStreamRequest) -> StreamingResponse:
+    """Real token-by-token streaming for the plain single-brain chat path
+    only -- no council, no skills (ChatStreamRequest rejects those fields
+    outright, see extra="forbid" above). Only OllamaBrain streams for
+    real today; every other brain falls back to Brain.generate_stream's
+    default (yields the complete reply as one chunk) via the same code
+    path, so this endpoint works for any brain, just without a visible
+    typing effect for the ones that don't support it yet.
+
+    NDJSON wire format, one JSON object per line:
+      {"delta": "..."}                       -- a content chunk
+      {"done": true, "session_id": "..."}     -- clean completion
+      {"error": "..."}                        -- a failure mid-stream
+
+    The error case is load-bearing, not a nicety: StreamingResponse
+    commits HTTP status 200 before the body generator is ever pulled, so
+    a failure after streaming has started can never become an HTTP error
+    status -- this NDJSON line is the only way to signal it."""
+    brain = _resolve_brain(request.brain)  # resolved before streaming starts,
+    # so a bad brain spec still gets a clean pre-stream 400 like /chat.
+
+    async def _encode() -> AsyncIterator[bytes]:
+        try:
+            async for delta in council.stream_chat(
+                request.session_id, request.message, request.persona, brain=brain
+            ):
+                yield (json.dumps({"delta": delta}) + "\n").encode("utf-8")
+        except Exception as exc:
+            reason = str(exc) or type(exc).__name__
+            yield (json.dumps({"error": reason}) + "\n").encode("utf-8")
+            return
+        yield (json.dumps({"done": True, "session_id": request.session_id}) + "\n").encode("utf-8")
+
+    return StreamingResponse(_encode(), media_type="application/x-ndjson")
 
 
 def _chat_response(outcome: council.ChatOutcome) -> ChatResponse:
